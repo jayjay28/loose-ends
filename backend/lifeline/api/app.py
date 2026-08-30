@@ -114,6 +114,8 @@ log = logging.getLogger(__name__)
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     db.get_connection()      # migrate on boot
+    from . import transport
+    await asyncio.to_thread(transport.advertise)   # §v3 ws4 — never fatal
     task = asyncio.create_task(poller.run_forever())
     try:
         yield
@@ -123,6 +125,7 @@ async def lifespan(app: FastAPI):
             await task
         except asyncio.CancelledError:
             pass
+        transport.withdraw()
 
 
 app = FastAPI(title="Lifeline", version="1.0.0", lifespan=lifespan)
@@ -1778,9 +1781,12 @@ def setup_pair() -> Dict[str, Any]:
     import qrcode
     import qrcode.image.svg
 
+    from . import transport
+
     minted = api_auth.start_pairing()
     reach = setup_wizard._reachable_url()
-    payload = _json.dumps({"v": 1, "url": reach, "code": minted["code"]})
+    payload = _json.dumps({"v": 1, "url": reach, "code": minted["code"],
+                           "urls": transport.urls()})
     image = qrcode.make(payload, image_factory=qrcode.image.svg.SvgPathImage,
                         box_size=12)
     buffer = io.BytesIO()
@@ -1803,7 +1809,22 @@ def pair_claim(body: PairClaimIn) -> Dict[str, Any]:
     minted = api_auth.claim_pairing(body.code, body.device_name)
     if minted is None:
         raise HTTPException(404, "that code is unknown, expired, or already used — mint a fresh one on the Mac")
-    return {"token": minted["token"], "server_name": "Loose Ends engine"}
+    from . import transport
+
+    # §v3 ws4 — the phone learns every door at the moment it earns a key,
+    # so a DHCP move or leaving the house never strands it on one address.
+    return {"token": minted["token"], "server_name": "Loose Ends engine",
+            "urls": transport.urls()}
+
+
+@app.get("/transport")
+def transport_doors() -> Dict[str, Any]:
+    """§v3 ws4 — the engine's current doors. Paired phones refresh this on
+    sync, so candidates stay live as the network changes under the engine.
+    Behind the gate like everything else."""
+    from . import transport
+
+    return transport.describe()
 
 
 @app.get("/pair/status")

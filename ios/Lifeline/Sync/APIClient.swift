@@ -11,7 +11,9 @@ extension Notification.Name {
 actor APIClient {
     static let shared = APIClient()
 
-    private let baseURL: URL
+    /// §v3 ws4 — mutable: when this door stops answering, `send` asks the
+    /// `EngineLocator` for a live one and the client walks through it.
+    private var baseURL: URL
     private let session: URLSession
     private let decoder: JSONDecoder
     private let encoder: JSONEncoder
@@ -94,7 +96,24 @@ actor APIClient {
             request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
         }
 
-        let (data, response) = try await session.data(for: request)
+        let (data, response): (Data, URLResponse)
+        do {
+            (data, response) = try await session.data(for: request)
+        } catch let error as URLError where Self.isDoorProblem(error) {
+            // §v3 ws4 — the door didn't answer; the request never reached the
+            // engine, so retrying elsewhere is safe for any verb. One walk of
+            // the list, one retry, and the found door sticks for next time.
+            guard let door = await EngineLocator.shared.firstHealthy(excluding: baseURL) else {
+                throw error
+            }
+            rebase(to: door)
+            var retry = URLRequest(url: url(path, query: query))
+            retry.httpMethod = request.httpMethod
+            retry.allHTTPHeaderFields = request.allHTTPHeaderFields
+            retry.httpBody = request.httpBody
+            if let timeout { retry.timeoutInterval = timeout }
+            (data, response) = try await session.data(for: retry)
+        }
         guard let http = response as? HTTPURLResponse else {
             throw APIError.http(status: -1, body: "no HTTP response")
         }
@@ -114,16 +133,52 @@ actor APIClient {
         }
     }
 
+    // MARK: - transport (§v3 ws4)
+
+    /// The connection failures worth walking the door list for — the request
+    /// never reached the engine. HTTP errors are the engine *answering*, and
+    /// they never come through here.
+    private static func isDoorProblem(_ error: URLError) -> Bool {
+        switch error.code {
+        case .cannotConnectToHost, .cannotFindHost, .timedOut,
+             .networkConnectionLost, .dnsLookupFailed, .notConnectedToInternet:
+            return true
+        default:
+            return false
+        }
+    }
+
+    /// Adopt a new door: everything this client sends goes through it, the
+    /// next launch starts there (`defaultBaseURL` reads the override), and
+    /// the notification extension fetches its words from it.
+    func rebase(to door: URL) {
+        baseURL = door
+        UserDefaults.standard.set(door.absoluteString, forKey: "LifelineAPIBaseURL")
+        TokenStore.recordServerURL(door)
+    }
+
+    /// Ask the engine for its current doors and remember them — cheap, and
+    /// it keeps failover working after DHCP moves the Mac.
+    func refreshEngineDoors() async {
+        struct Doors: Decodable { let urls: [String] }
+        guard let doors: Doors = try? await send("GET", "/transport") else { return }
+        await EngineLocator.shared.remember(urls: doors.urls)
+    }
+
     // MARK: - pairing (§v3)
 
     /// Spend a pairing code for this phone's bearer token. The claim itself
     /// is the API's one open door, so it works before any token exists.
     func pair(code: String, deviceName: String) async throws {
         struct Body: Encodable { let code: String; let deviceName: String }
-        struct Response: Decodable { let token: String }
+        struct Response: Decodable { let token: String; let urls: [String]? }
         let response: Response = try await send(
             "POST", "/pair/claim", body: Body(code: code, deviceName: deviceName))
         TokenStore.save(response.token)
+        // §v3 ws4 — the moment the phone earns its key it learns every door.
+        if let urls = response.urls {
+            await EngineLocator.shared.remember(urls: urls)
+        }
     }
 
     // MARK: - views (§8.2)

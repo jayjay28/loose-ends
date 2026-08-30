@@ -219,6 +219,9 @@ struct ThreadsView: View {
                 // The main view owns pushing the device calendar to the backend
                 // (it moved here from the deck, which moved it from Now).
                 await CalendarSync.shared.sync(via: syncService.api)
+                // §v3 ws4 — keep the engine's door list fresh so failover
+                // still works after DHCP moves the Mac.
+                await syncService.api.refreshEngineDoors()
             }
             // The flight starts on dismissal rather than on Add: the words have
             // to be visible to be followed, and until the sheet is out of the

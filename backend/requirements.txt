@@ -8,3 +8,4 @@ pypdf>=4.0
 icalendar>=5.0
 pytest>=8.0
 qrcode
+zeroconf

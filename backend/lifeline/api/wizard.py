@@ -103,26 +103,11 @@ def _gcloud_account() -> Optional[str]:
 
 
 def _reachable_url() -> str:
-    """Where the phone should point: the tailnet name when there is one,
-    the LAN address otherwise. Best effort — the QR is a convenience and
-    the manual code path never depends on this being right."""
-    try:
-        out = subprocess.run(["tailscale", "status", "--json"],
-                             capture_output=True, text=True, timeout=5)
-        dns = json.loads(out.stdout).get("Self", {}).get("DNSName", "").rstrip(".")
-        if dns:
-            return f"https://{dns}"
-    except Exception:
-        pass
-    try:
-        out = subprocess.run(["ipconfig", "getifaddr", "en0"],
-                             capture_output=True, text=True, timeout=5)
-        ip = out.stdout.strip()
-        if ip:
-            return f"http://{ip}:8000"
-    except Exception:
-        pass
-    return "http://localhost:8000"
+    """Where the phone should point. §v3 ws4 moved the knowledge of the
+    engine's doors into `transport`; this stays as the wizard's one call."""
+    from . import transport
+
+    return transport.reachable_url()
 
 
 def status() -> Dict[str, Any]:

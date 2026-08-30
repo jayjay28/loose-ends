@@ -98,7 +98,7 @@ else
   <array>
     <string>/bin/zsh</string>
     <string>-c</string>
-    <string>cd $BACKEND &amp;&amp; exec .venv/bin/python -m uvicorn lifeline.api.app:app --host 127.0.0.1 --port $PORT</string>
+    <string>cd $BACKEND &amp;&amp; export LIFELINE_PORT=$PORT &amp;&amp; exec .venv/bin/python -m uvicorn lifeline.api.app:app --host 0.0.0.0 --port $PORT</string>
   </array>
   <key>StandardOutPath</key><string>$LOGS/$LABEL.log</string>
   <key>StandardErrorPath</key><string>$LOGS/$LABEL.err.log</string>

@@ -29,6 +29,12 @@
 		<key>NSAllowsLocalNetworking</key>
 		<true/>
 	</dict>
+	<key>NSBonjourServices</key>
+	<array>
+		<string>_loose-ends._tcp</string>
+	</array>
+	<key>NSLocalNetworkUsageDescription</key>
+	<string>Loose Ends finds and talks to the engine running on your own Mac over your local network. Nothing leaves your network.</string>
 	<key>NSCalendarsFullAccessUsageDescription</key>
 	<string>Loose Ends reads your upcoming events so it can surface the right things at the right time and know when you're free. Your events stay on your own server.</string>
 	<key>NSCalendarsWriteOnlyAccessUsageDescription</key>
