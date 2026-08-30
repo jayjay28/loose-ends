@@ -1,0 +1,115 @@
+{
+  "export_version": 1,
+  "exported_at": "2026-07-27T07:00:00+00:00",
+  "account_handles": ["+14155550101", "alex.carter@gmail.com"],
+  "chats": [
+    {
+      "chat_id": "iMessage;-;+14155550142",
+      "display_name": "Maya",
+      "is_group": false,
+      "participants": ["+14155550142"],
+      "messages": [
+        {
+          "guid": "im-0001",
+          "handle": "+14155550142",
+          "is_from_me": false,
+          "date": "2026-07-19T18:22:00+00:00",
+          "text": "Saw the Lemaire croissant bag in the window on Fillmore today. I want that bag."
+        },
+        {
+          "guid": "im-0002",
+          "handle": "+14155550101",
+          "is_from_me": true,
+          "date": "2026-07-19T18:41:00+00:00",
+          "text": "ha, noted"
+        },
+        {
+          "guid": "im-0003",
+          "handle": "+14155550142",
+          "is_from_me": false,
+          "date": "2026-07-21T15:05:00+00:00",
+          "text": "Reminder that the Hendersons' dinner is a week from Saturday and we still haven't RSVPd"
+        },
+        {
+          "guid": "im-0004",
+          "handle": "+14155550142",
+          "is_from_me": false,
+          "date": "2026-07-23T02:11:00+00:00",
+          "text": "Can you call the pediatrician about Iris's rash? I've asked twice now"
+        },
+        {
+          "guid": "im-0005",
+          "handle": "+14155550142",
+          "is_from_me": false,
+          "date": "2026-07-25T16:48:00+00:00",
+          "text": "did you ever book the flights for grandma's thing"
+        },
+        {
+          "guid": "im-0006",
+          "handle": "+14155550142",
+          "is_from_me": false,
+          "date": "2026-07-26T22:30:00+00:00",
+          "text": "no rush at all but whenever you get a sec, we should think about a dog sitter for October"
+        }
+      ]
+    },
+    {
+      "chat_id": "iMessage;+;chat9928374",
+      "display_name": "Carter Family",
+      "is_group": true,
+      "participants": ["+13105550177", "+13105550104"],
+      "messages": [
+        {
+          "guid": "im-0101",
+          "handle": "+13105550177",
+          "is_from_me": false,
+          "date": "2026-07-14T19:02:00+00:00",
+          "text": "Grandma's 80th is in 3 weeks! Sara is doing the cake, we need everyone here by the 4th"
+        },
+        {
+          "guid": "im-0102",
+          "handle": "+13105550104",
+          "is_from_me": false,
+          "date": "2026-07-14T19:20:00+00:00",
+          "text": "I'll get the hoop for his birthday, don't let Danny buy one"
+        },
+        {
+          "guid": "im-0103",
+          "handle": "+13105550177",
+          "is_from_me": false,
+          "date": "2026-07-22T17:44:00+00:00",
+          "text": "Did you look at that paper I sent about the medicare supplement? Need your read before I sign anything"
+        },
+        {
+          "guid": "im-0104",
+          "handle": "+13105550104",
+          "is_from_me": false,
+          "date": "2026-07-24T01:15:00+00:00",
+          "text": "random but has anyone watched that documentary about the shipping containers"
+        }
+      ]
+    },
+    {
+      "chat_id": "iMessage;-;+14155550163",
+      "display_name": "Theo",
+      "is_group": false,
+      "participants": ["+14155550163"],
+      "messages": [
+        {
+          "guid": "im-0201",
+          "handle": "+14155550163",
+          "is_from_me": false,
+          "date": "2026-07-20T20:33:00+00:00",
+          "text": "you still up for the Marin ride Sunday? need to know by Friday for the reservation"
+        },
+        {
+          "guid": "im-0202",
+          "handle": "+14155550163",
+          "is_from_me": false,
+          "date": "2026-07-24T14:02:00+00:00",
+          "text": "whenever, no pressure — that bike shop in Sausalito has the tubeless kit if you want it"
+        }
+      ]
+    }
+  ]
+}

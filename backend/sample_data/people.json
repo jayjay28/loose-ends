@@ -1,0 +1,38 @@
+[
+  {
+    "id": "maya",
+    "display_name": "Maya",
+    "relationship": "spouse",
+    "handles": ["+14155550142", "maya.lindqvist@gmail.com", "Maya Lindqvist"]
+  },
+  {
+    "id": "dev",
+    "display_name": "Dev Shah",
+    "relationship": "friend",
+    "handles": ["+14155550188", "dev.shah@hey.com", "Dev Shah"]
+  },
+  {
+    "id": "priya",
+    "display_name": "Priya Raman",
+    "relationship": "friend",
+    "handles": ["+16505550119", "priya.raman@gmail.com", "Priya Raman"]
+  },
+  {
+    "id": "theo",
+    "display_name": "Theo",
+    "relationship": "friend",
+    "handles": ["+14155550163", "Theo Brandt"]
+  },
+  {
+    "id": "mom",
+    "display_name": "Mom",
+    "relationship": "family",
+    "handles": ["+13105550177", "eileen.carter@icloud.com", "Eileen Carter"]
+  },
+  {
+    "id": "sara",
+    "display_name": "Sara",
+    "relationship": "family",
+    "handles": ["+13105550104", "Sara Carter"]
+  }
+]

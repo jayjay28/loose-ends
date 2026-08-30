@@ -1,0 +1,521 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Lifeline — Technical Specification</title>
+<style>
+    * { margin:0; padding:0; box-sizing:border-box; }
+
+    body {
+        font-family: Georgia, 'Times New Roman', serif;
+        background-color: #FFF1E5;
+        color: #262a33;
+        line-height: 1.7;
+        padding: 40px 20px;
+    }
+
+    .container {
+        max-width: 880px;
+        margin: 0 auto;
+        background-color: #FFFBF7;
+        padding: 55px 60px;
+        box-shadow: 0 1px 6px rgba(0,0,0,0.08);
+    }
+
+    header {
+        border-bottom: 3px solid #0d7680;
+        padding-bottom: 24px;
+        margin-bottom: 20px;
+    }
+
+    .kicker {
+        font-family: -apple-system, 'Helvetica Neue', Arial, sans-serif;
+        font-size: 12px;
+        text-transform: uppercase;
+        letter-spacing: 1.5px;
+        color: #a35a00;
+        font-weight: 700;
+        margin-bottom: 10px;
+    }
+
+    h1 {
+        font-size: 34px;
+        font-weight: 700;
+        letter-spacing: -0.3px;
+        color: #1a1a1a;
+    }
+
+    .dek {
+        font-size: 16px;
+        color: #555;
+        margin-top: 10px;
+        font-style: italic;
+        max-width: 640px;
+    }
+
+    nav.toc {
+        background: #F5EEE8;
+        border: 1px solid #e3d7c8;
+        padding: 20px 26px;
+        margin: 30px 0 40px 0;
+        font-family: -apple-system, 'Helvetica Neue', Arial, sans-serif;
+    }
+    nav.toc .toc-title {
+        font-size: 11px;
+        text-transform: uppercase;
+        letter-spacing: 1px;
+        font-weight: 700;
+        color: #a35a00;
+        margin-bottom: 10px;
+    }
+    nav.toc ol { margin-left: 18px; }
+    nav.toc li { font-size: 14px; margin-bottom: 6px; }
+    nav.toc a { color: #0d7680; text-decoration: none; }
+    nav.toc a:hover { text-decoration: underline; }
+
+    section { margin-bottom: 44px; }
+
+    h2 {
+        font-size: 22px;
+        color: #0d7680;
+        margin-top: 10px;
+        margin-bottom: 16px;
+        padding-bottom: 8px;
+        border-bottom: 2px solid #d6cbbc;
+        font-weight: 700;
+    }
+
+    h3 {
+        font-family: -apple-system, 'Helvetica Neue', Arial, sans-serif;
+        font-size: 15px;
+        text-transform: uppercase;
+        letter-spacing: 0.4px;
+        color: #a35a00;
+        margin-top: 26px;
+        margin-bottom: 10px;
+        font-weight: 700;
+    }
+
+    p { margin-bottom: 14px; font-size: 15.5px; }
+
+    ul, ol.body-list { margin-left: 24px; margin-bottom: 16px; }
+    li { margin-bottom: 8px; font-size: 15.5px; }
+
+    strong { color: #1a1a1a; }
+
+    code {
+        font-family: 'SF Mono', Menlo, Consolas, monospace;
+        background: #F0EBDE;
+        padding: 2px 6px;
+        border-radius: 3px;
+        font-size: 13.5px;
+        color: #8a2b06;
+    }
+
+    pre {
+        background: #262a33;
+        color: #e8e3d8;
+        font-family: 'SF Mono', Menlo, Consolas, monospace;
+        font-size: 13px;
+        line-height: 1.6;
+        padding: 22px 24px;
+        border-radius: 6px;
+        overflow-x: auto;
+        margin: 18px 0;
+    }
+    pre code { background: none; color: inherit; padding: 0; }
+
+    table {
+        width: 100%;
+        border-collapse: collapse;
+        margin: 18px 0 26px 0;
+        font-family: -apple-system, 'Helvetica Neue', Arial, sans-serif;
+        font-size: 13.5px;
+    }
+    th {
+        background-color: #0d7680;
+        color: #FFFBF7;
+        padding: 10px 12px;
+        text-align: left;
+        font-weight: 700;
+    }
+    td {
+        padding: 10px 12px;
+        border-bottom: 1px solid #e8dfd2;
+        vertical-align: top;
+    }
+    tr:nth-child(even) td { background: #FAF3EC; }
+
+    .callout {
+        background: #EEF6F5;
+        border-left: 4px solid #0d7680;
+        padding: 16px 20px;
+        margin: 18px 0;
+        font-size: 14.5px;
+    }
+    .callout strong { color: #0d7680; }
+
+    .warn {
+        background: #FFF4EE;
+        border-left: 4px solid #a35a00;
+        padding: 16px 20px;
+        margin: 18px 0;
+        font-size: 14.5px;
+    }
+    .warn strong { color: #a35a00; }
+
+    .diagram {
+        font-family: 'SF Mono', Menlo, Consolas, monospace;
+        font-size: 12.5px;
+        line-height: 1.5;
+        background: #262a33;
+        color: #9fd8d4;
+        padding: 22px;
+        border-radius: 6px;
+        white-space: pre;
+        overflow-x: auto;
+        margin: 18px 0;
+    }
+
+    .milestone {
+        border: 1px solid #e3d7c8;
+        border-left: 4px solid #0d7680;
+        padding: 14px 20px;
+        margin-bottom: 12px;
+        background: #FFFBF7;
+    }
+    .milestone .num {
+        display: inline-block;
+        font-family: -apple-system, sans-serif;
+        font-weight: 700;
+        color: #FFFBF7;
+        background: #0d7680;
+        width: 22px; height: 22px;
+        border-radius: 50%;
+        text-align: center;
+        line-height: 22px;
+        font-size: 12px;
+        margin-right: 10px;
+    }
+    .milestone .title { font-weight: 700; font-size: 15px; }
+
+    .footer {
+        border-top: 1px solid #d6cbbc;
+        padding-top: 24px;
+        margin-top: 50px;
+        font-size: 12.5px;
+        color: #999;
+        font-style: italic;
+        font-family: -apple-system, sans-serif;
+    }
+
+    @media print {
+        body { background: #fff; }
+        .container { box-shadow: none; }
+    }
+</style>
+</head>
+<body>
+<div class="container">
+
+    <header>
+        <div class="kicker">Technical Specification — v1.0</div>
+        <h1>Lifeline</h1>
+        <p class="dek">A conversation-intelligence system that extracts commitments, follow-ups, and reminders from personal conversations, ranks them with a learned importance model, auto-detects completion via external signals, and surfaces them in an adaptive iOS app.</p>
+    </header>
+
+    <nav class="toc">
+        <div class="toc-title">Contents</div>
+        <ol>
+            <li><a href="#s1">Problem Statement</a></li>
+            <li><a href="#s2">Scope</a></li>
+            <li><a href="#s3">Data Sources & Access</a></li>
+            <li><a href="#s4">System Architecture</a></li>
+            <li><a href="#s5">Extraction Pipeline</a></li>
+            <li><a href="#s6">Importance Ranking / Learning Engine</a></li>
+            <li><a href="#s7">Completion Detection Engine</a></li>
+            <li><a href="#s8">UI/UX Requirements</a></li>
+            <li><a href="#s9">Tech Stack Recommendation</a></li>
+            <li><a href="#s10">Build Milestones</a></li>
+            <li><a href="#s11">Open Decisions</a></li>
+            <li><a href="#s12">Privacy & Security</a></li>
+        </ol>
+    </nav>
+
+    <section id="s1">
+        <h2>1. Problem Statement</h2>
+        <p>The user maintains ongoing conversations with a small set of important people (spouse, close friends, family) across iMessage, WhatsApp, and email. These threads contain implicit commitments, promises, purchase requests, reading recommendations, and event reminders that get buried in message history and are frequently forgotten.</p>
+        <p>No existing system does all of the following:</p>
+        <ol class="body-list">
+            <li>Extracts these items automatically from casual conversation — not formal task language</li>
+            <li>Learns what actually matters to <em>this specific user</em>, rather than applying static rules</li>
+            <li>Detects when an item has already been resolved using external data (email, calendar) without requiring manual check-off</li>
+            <li>Presents the result in a UI that adapts to context rather than a fixed dashboard layout</li>
+        </ol>
+    </section>
+
+    <section id="s2">
+        <h2>2. Scope</h2>
+        <ul>
+            <li><strong>Initial conversation sources:</strong> 5 threads (iMessage, WhatsApp, email), expected to grow</li>
+            <li><strong>People:</strong> spouse, 2–3 friends, 1 family group — mix of 1:1 and group threads</li>
+            <li><strong>Platform:</strong> native iPhone app. This is the primary and only client for MVP</li>
+            <li><strong>Usage pattern:</strong> morning check-in expected daily (ranked briefing), plus ad-hoc opens throughout the day with live state updates</li>
+        </ul>
+    </section>
+
+    <section id="s3">
+        <h2>3. Data Sources & Access</h2>
+        <table>
+            <tr><th>Source</th><th>Purpose</th><th>Access Method</th><th>iOS Constraint</th></tr>
+            <tr>
+                <td>iMessage</td>
+                <td>Primary extraction source</td>
+                <td>Local Messages DB export or manual sync</td>
+                <td>No public API — requires on-device parsing or user-driven export</td>
+            </tr>
+            <tr>
+                <td>WhatsApp</td>
+                <td>Extraction source</td>
+                <td>Business API or chat export</td>
+                <td>No native read API on iOS</td>
+            </tr>
+            <tr>
+                <td>Gmail (full inbox)</td>
+                <td>Extraction, context, and completion signals — not receipts-only</td>
+                <td>Gmail API, OAuth 2.0 read-only</td>
+                <td>User authorization required; primary integration point</td>
+            </tr>
+            <tr>
+                <td>Google Calendar</td>
+                <td>Event/deadline context, RSVP status, birthdays</td>
+                <td>Calendar API, OAuth 2.0</td>
+                <td>Treated as first-class source — user's life runs through Google</td>
+            </tr>
+            <tr>
+                <td>Contacts</td>
+                <td>Relationship metadata, name resolution</td>
+                <td>iOS Contacts framework</td>
+                <td>Available</td>
+            </tr>
+            <tr>
+                <td>Call log</td>
+                <td>Detect "call so-and-so" completions</td>
+                <td>CallKit / CoreTelephony</td>
+                <td>Heavily restricted — v2, manual fallback for MVP</td>
+            </tr>
+            <tr>
+                <td>Location / Photos / Screen Time</td>
+                <td>Considered</td>
+                <td>—</td>
+                <td>Blocked by Apple privacy model — excluded from MVP</td>
+            </tr>
+        </table>
+
+        <div class="callout">
+            <strong>Design principle:</strong> Gmail is not "receipts only." Every email is a candidate for extraction and completion-signal matching. The importance-ranking engine (Section 6) filters signal from noise — this is not solved by scoping the data source down, it's solved by scoping the model up.
+        </div>
+    </section>
+
+    <section id="s4">
+        <h2>4. System Architecture</h2>
+        <div class="diagram">┌─────────────────────────────────────────────────────────────┐
+│  INGESTION                                                    │
+│  iMessage export · WhatsApp export · Gmail API · GCal API     │
+└──────────────────────────┬────────────────────────────────────┘
+                            ↓
+┌─────────────────────────────────────────────────────────────┐
+│  EXTRACTION LAYER (LLM-based classification)                  │
+│  → structured items: {type, sender, text, entities, dates}    │
+└──────────────────────────┬────────────────────────────────────┘
+                            ↓
+┌─────────────────────────────────────────────────────────────┐
+│  IMPORTANCE / LEARNING ENGINE                                  │
+│  → scores each item; assigns interruption level                │
+│  → detects avoidance vs. deprioritization patterns              │
+└──────────────────────────┬────────────────────────────────────┘
+                            ↓
+┌─────────────────────────────────────────────────────────────┐
+│  COMPLETION DETECTION ENGINE                                   │
+│  → watches Gmail/Calendar for signals matching open items      │
+│  → auto-closes high-confidence matches, flags fuzzy ones        │
+└──────────────────────────┬────────────────────────────────────┘
+                            ↓
+┌─────────────────────────────────────────────────────────────┐
+│  LOCAL STORE (on-device database)                              │
+└──────────────────────────┬────────────────────────────────────┘
+                            ↓
+┌─────────────────────────────────────────────────────────────┐
+│  iOS APP (adaptive presentation layer)                         │
+└─────────────────────────────────────────────────────────────┘</div>
+    </section>
+
+    <section id="s5">
+        <h2>5. Extraction Pipeline</h2>
+        <p><strong>Input:</strong> raw message/email text plus metadata (sender, timestamp, thread ID).</p>
+
+        <h3>Classification Taxonomy</h3>
+        <table>
+            <tr><th>Type</th><th>Example</th><th>Notes</th></tr>
+            <tr><td><code>purchase</code></td><td>"I want that bag"</td><td>Entity = product/item name</td></tr>
+            <tr><td><code>event</code></td><td>"Grandma's 80th is in 3 weeks"</td><td>Entity = date; requires relative → absolute normalization</td></tr>
+            <tr><td><code>promise</code></td><td>"I'll get the hoop for his birthday"</td><td>Entity = commitment, implied deadline</td></tr>
+            <tr><td><code>followup</code></td><td>"Did you look at that paper I sent?"</td><td>Links back to earlier extracted item if possible</td></tr>
+            <tr><td><code>reading</code></td><td>"Found this article, you'd love it"</td><td>Entity = link/title if present</td></tr>
+            <tr><td><code>question</code></td><td>Anything requiring a direct reply</td><td>Lowest complexity, highest frequency</td></tr>
+        </table>
+
+        <h3>Output Schema Per Item</h3>
+        <pre><code>{
+  "id": "uuid",
+  "source": "imessage|whatsapp|gmail",
+  "thread_id": "string",
+  "person": "string",
+  "timestamp": "ISO-8601",
+  "type": "purchase|event|promise|followup|reading|question",
+  "raw_text": "string",
+  "entities": { "item": "string|null", "date": "ISO-8601|null", "link": "string|null" },
+  "suggested_action": "string (LLM-generated, e.g. 'Buy the bag by Friday')",
+  "suggested_reply": "string|null (LLM-drafted response, optional per user config)",
+  "status": "pending|completed|snoozed|dismissed",
+  "created_at": "ISO-8601"
+}</code></pre>
+        <p>Re-extraction should run incrementally on new messages only — not re-process full history each time.</p>
+    </section>
+
+    <section id="s6">
+        <h2>6. Importance Ranking / Learning Engine</h2>
+        <p>This is the core differentiator and should be treated as first-class, not a stretch feature.</p>
+
+        <h3>6.1 Interruption Levels</h3>
+        <p>Modeled on Apple's notification framework:</p>
+        <ul>
+            <li><strong>Time-Sensitive</strong> — hard deadline approaching, dependent actions (e.g., travel booking tied to an event date)</li>
+            <li><strong>Active</strong> — default level; requires eventual action, no immediate deadline pressure</li>
+            <li><strong>Passive</strong> — low-stakes, explicitly flexible, or historically low-priority for this sender/type — batched into a collapsed summary rather than surfaced individually</li>
+        </ul>
+
+        <h3>6.2 Signals Feeding the Importance Score</h3>
+        <p>A weighted, multi-signal model — not a single rule:</p>
+        <ul>
+            <li><strong>Response latency</strong> — how fast the user historically responds to this sender / item type</li>
+            <li><strong>Action-immediacy signal</strong> — acting on an item immediately after it surfaces is a strong positive signal for that sender/type combination going forward</li>
+            <li><strong>Sender identity/weight</strong> — learned per-person, not hardcoded</li>
+            <li><strong>Revisit frequency without action</strong> — an item opened repeatedly with no action is a signal, interpreted per Section 6.3</li>
+            <li><strong>Time-of-day engagement pattern</strong> — see Section 6.4</li>
+            <li><strong>Explicit signals</strong> — starred/flagged in Gmail, pinned conversation, etc.</li>
+        </ul>
+
+        <h3>6.3 Avoidance vs. Deprioritization</h3>
+        <p>The system must distinguish "the user is avoiding this" from "the user genuinely doesn't care," because they require opposite responses — surface more insistently, versus stop surfacing entirely.</p>
+        <table>
+            <tr><th>Signal</th><th>Reads as Avoidance</th><th>Reads as Deprioritization</th></tr>
+            <tr><td>View count</td><td>Opened repeatedly (3+), no action</td><td>Opened once, never revisited</td></tr>
+            <tr><td>Deadline proximity effect</td><td>Action clusters right before deadline (anxiety-driven relief-seeking)</td><td>No deadline effect — never acted on, regardless of timing</td></tr>
+            <tr><td>Cross-context comparison</td><td>User acts quickly on other items from the same sender, stalls specifically on this one</td><td>User consistently ignores this type of item regardless of sender</td></tr>
+            <tr><td>Task emotional weight</td><td>Item requires confrontation, a call, or a decision with social stakes</td><td>Item is low-stakes but simply not relevant right now</td></tr>
+        </table>
+        <div class="warn">
+            <strong>Tone matters:</strong> when avoidance is detected, escalate visibility gently — do not spam, and do not assume failure. When deprioritization is detected, decay that sender/type's weight for future ranking — this is the actual learning step.
+        </div>
+
+        <h3>6.4 Time-of-Day Awareness</h3>
+        <p>Circadian/attention research indicates people are more accurate on analytical, novel tasks in mid-morning — and morning check-in is the user's stated primary usage window. Weight the morning briefing toward decision-requiring items (Time-Sensitive, Active); hold Passive items for whenever the user has idle time.</p>
+    </section>
+
+    <section id="s7">
+        <h2>7. Completion Detection Engine</h2>
+        <p><strong>Goal:</strong> close the loop without requiring manual mark-done, using Gmail and Calendar as primary evidence.</p>
+        <ol class="body-list">
+            <li>Background job polls Gmail/Calendar for new data</li>
+            <li>For each <code>pending</code> item, attempt to match new data against it (entity match: item name, person, date, amount)</li>
+            <li><strong>High-confidence match</strong> (exact product name in a receipt, calendar event confirmed past with no cancellation) → auto-close, notify with a positive message, log which signal closed it</li>
+            <li><strong>Low-confidence match</strong> (fuzzy name, ambiguous timing) → do not auto-close; surface as "possible match, confirm?"</li>
+            <li><strong>No signal found</strong> → item remains in its current state, subject to re-ranking over time</li>
+        </ol>
+        <p>Manual override is always available. A manual close also feeds the learning engine — it tells the system this item type doesn't reliably produce an external signal, and future similar items should weight manual-confirmation patterns accordingly.</p>
+    </section>
+
+    <section id="s8">
+        <h2>8. UI/UX Requirements</h2>
+
+        <h3>8.1 Presentation Philosophy — Adaptive, Not Fixed</h3>
+        <p>Per Contextual Adaptive Visualization Environment (CAVE) research (Bai, White & Sundaram, 2012): the interface should sense and respond to changes in problem, purpose, and user context rather than presenting one static dashboard layout.</p>
+        <ul>
+            <li>Grouping and ordering of items changes based on time of day, day of week, and current item mix — five Time-Sensitive items compress everything else; an empty queue shows a genuinely different, quieter state, not an empty dashboard shell</li>
+            <li>Level of detail per item adapts to urgency — Time-Sensitive items get full context up front; Passive items collapse into a single summary row</li>
+            <li>Layout is system-determined based on context, not manually configured by the user, consistent with CAVE's "sense → analyze → respond" loop</li>
+        </ul>
+
+        <h3>8.2 Core Views</h3>
+        <ul>
+            <li><strong>Today</strong> — ranked briefing, grouped by interruption level, Passive items batched</li>
+            <li><strong>Threads</strong> — per-person view, all pending items from that conversation only</li>
+            <li><strong>History</strong> — completed items, how each was closed (auto-detected vs. manual), streak/pattern visibility</li>
+        </ul>
+
+        <h3>8.3 Interaction Requirements</h3>
+        <ul>
+            <li>Tap to expand → suggested action, optional drafted reply, and a short "why this is ranked here" explanation — transparency into the learning engine, not a black box</li>
+            <li>Mark Done / Snooze actions available per item</li>
+            <li>Celebratory, non-intrusive feedback on auto-detected completions</li>
+        </ul>
+
+        <h3>8.4 Notification Model</h3>
+        <p>Modeled on Apple's own approach: interruption levels map directly to push urgency (Time-Sensitive can break through Focus/DND-equivalent states; Passive items never push, they only appear in-app). Batch Passive items into a single periodic summary notification rather than one-per-item.</p>
+    </section>
+
+    <section id="s9">
+        <h2>9. Tech Stack Recommendation</h2>
+        <ul>
+            <li><strong>iOS app:</strong> SwiftUI, Core Data or SQLite via GRDB for local storage</li>
+            <li><strong>Extraction/classification:</strong> Claude API for LLM classification, called from a lightweight backend or via a server-side proxy for API key security</li>
+            <li><strong>Backend:</strong> minimal service (Python/Node) for OAuth token handling, Gmail/Calendar polling, extraction orchestration, and pushing updates to the device via APNs and sync to local store</li>
+            <li><strong>Auth:</strong> OAuth 2.0 for Gmail + Google Calendar</li>
+            <li><strong>iMessage/WhatsApp ingestion:</strong> neither has a public read API on iOS — MVP should support a manual/periodic export-and-import flow rather than assuming live streaming access. This is a real constraint, not a shortcut.</li>
+        </ul>
+    </section>
+
+    <section id="s10">
+        <h2>10. Build Milestones</h2>
+        <p>Dependency-ordered, not time-boxed. Each milestone should be independently testable against real (or realistic sample) data before moving to the next.</p>
+
+        <div class="milestone"><span class="num">1</span><span class="title">Data model + local store</span> — schema from Section 5, on-device DB.</div>
+        <div class="milestone"><span class="num">2</span><span class="title">Extraction pipeline</span> — ingest sample exports (iMessage/WhatsApp/Gmail), run LLM classification, produce structured items.</div>
+        <div class="milestone"><span class="num">3</span><span class="title">Gmail + Calendar OAuth integration</span> — read access, polling.</div>
+        <div class="milestone"><span class="num">4</span><span class="title">Importance ranking engine v1</span> — rule-weighted scoring per Section 6.2, static weights, no learning loop yet.</div>
+        <div class="milestone"><span class="num">5</span><span class="title">Completion detection v1</span> — high-confidence auto-match only; fuzzy matching deferred.</div>
+        <div class="milestone"><span class="num">6</span><span class="title">iOS app v1</span> — Today/Threads/History views, adaptive grouping per Section 8.</div>
+        <div class="milestone"><span class="num">7</span><span class="title">Learning loop</span> — feed behavior (response latency, view counts, manual overrides) back into ranking weights; implement avoidance-vs-deprioritization heuristics from Section 6.3.</div>
+        <div class="milestone"><span class="num">8</span><span class="title">Fuzzy completion matching</span> — confirm-to-close flow.</div>
+        <div class="milestone"><span class="num">9</span><span class="title">Notification system</span> — interruption-level-based push, Passive batching.</div>
+    </section>
+
+    <section id="s11">
+        <h2>11. Open Decisions</h2>
+        <ul>
+            <li>Suggested replies: draft actual reply text, action items only, or both — configurable per item type?</li>
+            <li>Snooze behavior: fixed re-surface interval, or learned per item?</li>
+            <li>Should avoidance-flagged items ever be shown differently in copy/tone, or purely in ranking position?</li>
+            <li>Data residency: fully on-device, or an encrypted backend store for cross-device continuity later?</li>
+        </ul>
+    </section>
+
+    <section id="s12">
+        <h2>12. Privacy & Security</h2>
+        <ul>
+            <li>Gmail/Calendar access via OAuth only — no credential storage</li>
+            <li>Conversation data (iMessage/WhatsApp) stored locally on-device by default</li>
+            <li>No data leaves the device except: (a) LLM classification calls — text sent to Claude API, (b) OAuth-scoped reads from Google APIs</li>
+            <li>User can purge all extracted data and re-sync from scratch</li>
+        </ul>
+    </section>
+
+    <div class="footer">
+        Lifeline — Technical Specification v1.0 · Prepared for implementation handoff
+    </div>
+
+</div>
+</body>
+</html>

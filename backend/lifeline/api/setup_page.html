@@ -1,0 +1,301 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Loose Ends setup</title>
+<style>
+  :root {
+    --paper: #faf8f4; --card: #ffffff; --rule: #e7e2d8;
+    --ink: #302d28; --soft: #6b6459; --ghost: #b5aea1;
+    --brand: #1f6157; --brand-soft: rgba(31,97,87,.09);
+    --ember: #a84124; --chip: #efeadf; --good: #4c7a43;
+    --serif: ui-serif, "New York", Charter, Georgia, serif;
+    --sans: -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
+    --mono: ui-monospace, SFMono-Regular, Menlo, monospace;
+  }
+  * { box-sizing: border-box; }
+  body {
+    background: var(--paper); color: var(--ink); font-family: var(--sans);
+    font-size: 15px; line-height: 1.55; margin: 0; padding: 0 20px 80px;
+  }
+  .wrap { max-width: 660px; margin: 0 auto; }
+  header { padding: 54px 0 10px; }
+  .mark { font-family: var(--mono); font-size: 11px; letter-spacing: .15em;
+          text-transform: uppercase; color: var(--brand); margin: 0 0 12px; }
+  h1 { font-family: var(--serif); font-size: 34px; font-weight: 600; margin: 0 0 6px; }
+  .lede { color: var(--soft); margin: 0 0 26px; max-width: 52ch; }
+
+  .step {
+    background: var(--card); border: 1px solid var(--rule); border-radius: 14px;
+    margin: 0 0 14px; overflow: hidden;
+  }
+  .step-head {
+    display: flex; align-items: center; gap: 12px; padding: 15px 18px;
+    cursor: pointer; user-select: none;
+  }
+  .light { width: 22px; height: 22px; border-radius: 50%; flex: 0 0 auto;
+           display: grid; place-items: center; font-size: 12px; font-weight: 700;
+           border: 1.5px solid var(--rule); color: var(--ghost); background: var(--paper); }
+  .light.done { background: var(--good); border-color: var(--good); color: #fff; }
+  .light.active { border-color: var(--brand); color: var(--brand); }
+  .step-head b { font-family: var(--serif); font-size: 17px; font-weight: 600; flex: 1; }
+  .who { font-family: var(--mono); font-size: 10px; letter-spacing: .08em;
+         text-transform: uppercase; color: var(--ghost); }
+  .who.you { color: var(--ember); }
+  .step-body { padding: 2px 18px 18px 52px; display: none; }
+  .step.open .step-body { display: block; }
+  .step-body p { margin: 0 0 12px; color: var(--soft); font-size: 13.5px; max-width: 52ch; }
+  .step-body p b { color: var(--ink); }
+
+  button {
+    font: 600 13.5px var(--sans); color: #fff; background: var(--brand);
+    border: 0; border-radius: 9px; padding: 10px 18px; cursor: pointer;
+  }
+  button.quiet { background: var(--chip); color: var(--ink); }
+  button:disabled { background: var(--ghost); cursor: default; }
+
+  .journal { font-family: var(--mono); font-size: 12px; color: var(--soft);
+             margin: 12px 0 0; display: grid; gap: 5px; }
+  .journal div::before { content: "· "; color: var(--brand); }
+  .journal .err { color: var(--ember); }
+  .live { font-family: var(--mono); font-size: 11.5px; color: var(--soft); margin-top: 12px; }
+  .live .dot { color: var(--brand); animation: pulse 1.4s infinite; }
+  @keyframes pulse { 50% { opacity: .25; } }
+
+  .clicks { display: grid; gap: 7px; margin: 0 0 14px; }
+  .click { display: flex; gap: 10px; align-items: baseline; font-size: 13.5px; }
+  .click .k { font-family: var(--mono); font-size: 10px; color: var(--brand);
+              border: 1px solid var(--brand); border-radius: 4px; padding: 1px 6px; }
+  .dropnote { border: 2px dashed var(--rule); border-radius: 10px; padding: 13px;
+              text-align: center; font-size: 12.5px; color: var(--ghost); }
+  .dropnote b { color: var(--brand); }
+
+  input[type=password], input[type=text] {
+    font: 13.5px var(--mono); color: var(--ink); background: var(--paper);
+    border: 1px solid var(--rule); border-radius: 9px; padding: 10px 12px;
+    width: 100%; margin: 0 0 10px;
+  }
+  .row { display: flex; gap: 10px; align-items: center; }
+  .err-line { color: var(--ember); font-size: 12.5px; margin-top: 8px; }
+
+  .qr-wrap { text-align: center; padding: 6px 0 0; }
+  .qr-wrap svg { width: 180px; height: 180px; background: #fff; border-radius: 10px;
+                 border: 1px solid var(--rule); padding: 8px; }
+  .paircode { font: 700 26px var(--mono); letter-spacing: .12em; margin: 10px 0 2px; }
+  .qr-wrap small { color: var(--ghost); font-size: 11.5px; }
+
+  footer { margin-top: 36px; font-family: var(--mono); font-size: 11px; color: var(--ghost); }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <p class="mark">Loose Ends · engine setup</p>
+    <h1>Four things, ten minutes</h1>
+    <p class="lede">Most of this runs itself — every wait says what it's watching and moves on alone. Two minutes are yours, and we'll point at every click.</p>
+  </header>
+
+  <!-- 1 · Google -->
+  <div class="step" id="s-google">
+    <div class="step-head" onclick="toggle('s-google')">
+      <span class="light" id="l-google">1</span>
+      <b>Your own private Google connection</b>
+      <span class="who">~5 min · mostly us</span>
+    </div>
+    <div class="step-body">
+      <div id="g-auto">
+        <p>We'll sign you into Google, create a project <b>only you will ever use</b>, and switch on Gmail and Calendar access — that's what keeps your mail between you and Google.</p>
+        <button id="g-start" onclick="startGoogle()">Start with Google</button>
+        <div class="journal" id="g-journal"></div>
+      </div>
+      <div id="g-clicks" style="display:none">
+        <p><b>The two minutes that are yours.</b> Google has no API for this part. We've opened the exact pages, pre-scoped to your project:</p>
+        <div class="clicks">
+          <div class="click"><span class="k">1</span><span>On the consent page: <b>Get started</b> — name it "Loose Ends", pick External, your email twice, Create</span></div>
+          <div class="click"><span class="k">2</span><span>On the clients page: type <b>Desktop app</b> → Create → <b>Download JSON</b></span></div>
+          <div class="click"><span class="k">3</span><span>On the audience page: <b>Publish app</b> — you're the only user; the warning screen it mentions is about you, from you</span></div>
+        </div>
+        <button class="quiet" onclick="openConsole()">Re-open the console pages</button>
+        <div class="dropnote" style="margin-top:12px">Nothing to drag anywhere —<br><b>watching your Downloads folder for the JSON…</b></div>
+      </div>
+      <div id="g-connect" style="display:none">
+        <p>Client adopted. One tab left: approve read-only access to your own mail and calendar. (Click <b>Advanced → continue</b> when Google warns — the unverified developer is you.)</p>
+        <button onclick="openAuth()">Approve access</button>
+      </div>
+      <div class="live" id="g-live" style="display:none"><span class="dot">●</span> <span id="g-live-text"></span></div>
+    </div>
+  </div>
+
+  <!-- 2 · Messages -->
+  <div class="step" id="s-fda">
+    <div class="step-head" onclick="toggle('s-fda')">
+      <span class="light" id="l-fda">2</span>
+      <b>Permission to read Messages</b>
+      <span class="who you">1 min · you</span>
+    </div>
+    <div class="step-body">
+      <p>macOS guards your iMessage history behind a switch only you can flip. In the pane we open, press <b>+</b>, then <b>⌘⇧G</b> and type <b>/bin/zsh</b>, add it, and make sure its toggle is on.</p>
+      <button onclick="openFDA()">Open the exact Settings pane</button>
+      <div class="live"><span class="dot">●</span> <span id="fda-live">checking whether Messages opens…</span></div>
+    </div>
+  </div>
+
+  <!-- 3 · Claude key -->
+  <div class="step" id="s-key">
+    <div class="step-head" onclick="toggle('s-key')">
+      <span class="light" id="l-key">3</span>
+      <b>A Claude API key</b>
+      <span class="who you">1 min · you</span>
+    </div>
+    <div class="step-body">
+      <p>The engine reads your life with Claude, billed to your own key — create one at <b>console.anthropic.com</b> → API keys. It's stored on this Mac and nowhere else.</p>
+      <div class="row">
+        <input type="password" id="key-input" placeholder="sk-ant-…" autocomplete="off">
+        <button onclick="saveKey()" id="key-btn">Save</button>
+      </div>
+      <div class="err-line" id="key-err"></div>
+    </div>
+  </div>
+
+  <!-- 4 · Pair -->
+  <div class="step" id="s-pair">
+    <div class="step-head" onclick="toggle('s-pair')">
+      <span class="light" id="l-pair">4</span>
+      <b>Pair your phone</b>
+      <span class="who">30 sec</span>
+    </div>
+    <div class="step-body">
+      <p>Open Loose Ends on your phone and scan — or type the code when it asks. Codes live ten minutes and work once.</p>
+      <button onclick="mintPair()" id="pair-btn">Show a pairing code</button>
+      <div class="qr-wrap" id="pair-out" style="display:none">
+        <div id="pair-qr"></div>
+        <div class="paircode" id="pair-code"></div>
+        <small id="pair-reach"></small>
+      </div>
+    </div>
+  </div>
+
+  <footer id="foot">checking the board…</footer>
+</div>
+
+<script>
+let googleStepOpen = false;
+
+function toggle(id) {
+  document.getElementById(id).classList.toggle('open');
+}
+function setLight(id, state, num) {
+  const el = document.getElementById(id);
+  el.className = 'light ' + state;
+  el.textContent = state === 'done' ? '✓' : num;
+}
+
+async function post(path, body) {
+  const r = await fetch(path, {method: 'POST', headers: {'Content-Type': 'application/json'},
+                               body: body ? JSON.stringify(body) : null});
+  return r.json();
+}
+
+function startGoogle() {
+  document.getElementById('g-start').disabled = true;
+  post('/setup/google/start');
+}
+function openConsole() { post('/setup/google/console'); }
+async function openAuth() {
+  const r = await fetch('/setup/google/auth-url');
+  const body = await r.json();
+  if (body.url) window.open(body.url, '_blank');
+}
+function openFDA() { post('/setup/fda/open'); }
+
+async function saveKey() {
+  const input = document.getElementById('key-input');
+  const err = document.getElementById('key-err');
+  document.getElementById('key-btn').disabled = true;
+  err.textContent = '';
+  const r = await post('/setup/key', {key: input.value});
+  document.getElementById('key-btn').disabled = false;
+  if (!r.ok) { err.textContent = r.reason; } else { input.value = ''; refresh(); }
+}
+
+async function mintPair() {
+  const r = await post('/setup/pair');
+  document.getElementById('pair-out').style.display = 'block';
+  document.getElementById('pair-qr').innerHTML = r.qr_svg;
+  document.getElementById('pair-code').textContent = r.code;
+  document.getElementById('pair-reach').textContent =
+    'engine at ' + r.reach_url + ' · fresh code any time';
+}
+
+function renderGoogle(g) {
+  const auto = document.getElementById('g-auto');
+  const clicks = document.getElementById('g-clicks');
+  const connect = document.getElementById('g-connect');
+  const live = document.getElementById('g-live');
+  const journal = document.getElementById('g-journal');
+
+  journal.innerHTML = '';
+  for (const line of g.automation.log) {
+    const div = document.createElement('div');
+    div.textContent = line;
+    journal.appendChild(div);
+  }
+  if (g.automation.error) {
+    const div = document.createElement('div');
+    div.className = 'err';
+    div.textContent = g.automation.error;
+    journal.appendChild(div);
+  }
+
+  const automationDone = g.automation.log.includes('done') || (g.project && !g.automation.running);
+  auto.style.display = (!automationDone && !g.client_ready) ? 'block' : 'none';
+  clicks.style.display = (automationDone && !g.client_ready) ? 'block' : 'none';
+  connect.style.display = (g.client_ready && !g.connected) ? 'block' : 'none';
+  googleStepOpen = automationDone && !g.client_ready;
+
+  if (g.automation.running) {
+    live.style.display = 'block';
+    document.getElementById('g-live-text').textContent = 'working — this page advances itself';
+  } else { live.style.display = 'none'; }
+
+  setLight('l-google', g.connected ? 'done' : 'active', 1);
+}
+
+async function refresh() {
+  let r;
+  try {
+    r = await fetch('/setup/status' + (googleStepOpen ? '?watch_downloads=1' : ''));
+  } catch (e) { return; }
+  const s = await r.json();
+
+  renderGoogle(s.google);
+  setLight('l-fda', s.fda.readable ? 'done' : 'active', 2);
+  document.getElementById('fda-live').textContent = s.fda.readable
+    ? 'Messages readable — found your conversations'
+    : 'waiting for the grant… (this flips by actually opening the database)';
+  setLight('l-key', s.key.present ? 'done' : 'active', 3);
+  setLight('l-pair', s.pairing.devices > 0 ? 'done' : 'active', 4);
+
+  const done = [s.google.connected, s.fda.readable, s.key.present, s.pairing.devices > 0]
+               .filter(Boolean).length;
+  document.getElementById('foot').textContent =
+    done === 4 ? 'all four ✓ — the engine is reading your life. You can close this page.'
+               : done + ' of 4 done · every ✓ on this page is a receipt, not a hope';
+
+  // Open the first not-done step, once, politely.
+  if (!window.__opened) {
+    window.__opened = true;
+    const order = [['s-google', s.google.connected], ['s-fda', s.fda.readable],
+                   ['s-key', s.key.present], ['s-pair', s.pairing.devices > 0]];
+    for (const [id, ok] of order) {
+      if (!ok) { document.getElementById(id).classList.add('open'); break; }
+    }
+  }
+}
+
+refresh();
+setInterval(refresh, 2500);
+</script>
+</body>
+</html>

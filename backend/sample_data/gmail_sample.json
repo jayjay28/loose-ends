@@ -1,0 +1,92 @@
+{
+  "messages": [
+    {
+      "id": "gm-1001",
+      "threadId": "gt-501",
+      "from": "Priya Raman <priya.raman@gmail.com>",
+      "to": "alex.carter@gmail.com",
+      "subject": "Sequoia trip — permits",
+      "date": "2026-07-17T16:20:00+00:00",
+      "labelIds": ["INBOX", "IMPORTANT"],
+      "snippet": "The Whitney lottery results are out and we got a Sept 12 slot.",
+      "body": "The Whitney lottery results are out and we got a Sept 12 slot. You need to confirm your half of the permit fee by August 5 or they release it. Can you send me the $88 whenever?"
+    },
+    {
+      "id": "gm-1002",
+      "threadId": "gt-502",
+      "from": "Mom <eileen.carter@icloud.com>",
+      "to": "alex.carter@gmail.com",
+      "subject": "the medicare paperwork",
+      "date": "2026-07-22T18:02:00+00:00",
+      "labelIds": ["INBOX", "STARRED"],
+      "snippet": "Attaching the supplement plan comparison again.",
+      "body": "Attaching the supplement plan comparison again. I need your read before I sign anything — the enrollment window closes August 9. Please look at page 3, the dental rider is the part I don't understand."
+    },
+    {
+      "id": "gm-1003",
+      "threadId": "gt-503",
+      "from": "Lemaire <orders@lemaire.fr>",
+      "to": "alex.carter@gmail.com",
+      "subject": "Your Lemaire order #LM-884213 is confirmed",
+      "date": "2026-07-26T11:14:00+00:00",
+      "labelIds": ["INBOX", "CATEGORY_PURCHASES"],
+      "snippet": "Thank you for your order. Croissant Bag, Nubuck, Dark Chocolate — $1,290.00",
+      "body": "Thank you for your order.\n\nOrder #LM-884213\nCroissant Bag, Nubuck, Dark Chocolate — $1,290.00\nShipping to: 2140 Hayes St, San Francisco CA\n\nEstimated delivery: August 2, 2026."
+    },
+    {
+      "id": "gm-1004",
+      "threadId": "gt-504",
+      "from": "Alaska Airlines <no-reply@alaskaair.com>",
+      "to": "alex.carter@gmail.com",
+      "subject": "Your trip to Los Angeles is confirmed — Confirmation UQXBTR",
+      "date": "2026-07-25T09:40:00+00:00",
+      "labelIds": ["INBOX", "CATEGORY_UPDATES"],
+      "snippet": "Confirmation UQXBTR. SFO to LAX, Fri Aug 3.",
+      "body": "Confirmation UQXBTR\n\nDeparting: SFO to LAX, Friday August 3, 2026, 4:15 PM\nReturning: LAX to SFO, Sunday August 5, 2026, 7:30 PM\nPassengers: 2 adults\n\nThank you for flying Alaska."
+    },
+    {
+      "id": "gm-1005",
+      "threadId": "gt-505",
+      "from": "Presidio Pediatrics <appointments@presidiopediatrics.com>",
+      "to": "alex.carter@gmail.com",
+      "subject": "Appointment reminder",
+      "date": "2026-07-24T15:00:00+00:00",
+      "labelIds": ["INBOX"],
+      "snippet": "You have an upcoming appointment.",
+      "body": "This is a reminder of your appointment for Iris Carter-Lindqvist with Dr. Bell on Wednesday, July 29 at 2:40 PM. Reply CANCEL to cancel."
+    },
+    {
+      "id": "gm-1006",
+      "threadId": "gt-506",
+      "from": "Dev Shah <dev.shah@hey.com>",
+      "to": "alex.carter@gmail.com",
+      "subject": "Dipsea entry",
+      "date": "2026-07-24T19:10:00+00:00",
+      "labelIds": ["INBOX"],
+      "snippet": "Entry link, closes Aug 1.",
+      "body": "Entry link, closes Aug 1: https://dipsearace.com/register — I'm in wave 3. Let me know if you register so I can put you on the team."
+    },
+    {
+      "id": "gm-1007",
+      "threadId": "gt-507",
+      "from": "Fillmore Hardware <newsletter@fillmorehardware.com>",
+      "to": "alex.carter@gmail.com",
+      "subject": "20% off all power tools this weekend",
+      "date": "2026-07-26T13:00:00+00:00",
+      "labelIds": ["INBOX", "CATEGORY_PROMOTIONS"],
+      "snippet": "Our biggest sale of the summer.",
+      "body": "Our biggest sale of the summer. 20% off all power tools, in store only, Saturday and Sunday. Unsubscribe."
+    },
+    {
+      "id": "gm-1008",
+      "threadId": "gt-508",
+      "from": "The Hendersons <j.henderson@gmail.com>",
+      "to": "alex.carter@gmail.com",
+      "subject": "Dinner, Aug 1 — headcount",
+      "date": "2026-07-21T22:15:00+00:00",
+      "labelIds": ["INBOX"],
+      "snippet": "Doing a proper sit-down on the 1st.",
+      "body": "Doing a proper sit-down on the 1st, 7pm at ours. Need a yes or no by Monday for the caterer — sorry to be that person about it."
+    }
+  ]
+}

@@ -1,0 +1,99 @@
+name: Lifeline
+options:
+  bundleIdPrefix: com.lifeline
+  deploymentTarget:
+    iOS: "17.0"
+  createIntermediateGroups: true
+
+settings:
+  base:
+    SWIFT_VERSION: "6.0"
+    ENABLE_USER_SCRIPT_SANDBOXING: NO
+    # Automatic signing with the developer's team, so it installs on a real
+    # device. Simulator builds ignore signing; device builds use it.
+    CODE_SIGN_STYLE: Automatic
+    # The maintainer's Apple team (not a secret — it's in every signed
+    # build). Kept here so regenerating the project never overwrites the
+    # signing selection. Contributors: set your own team in Xcode, or
+    # export DEVELOPMENT_TEAM before running xcodegen.
+    DEVELOPMENT_TEAM: E4AMNFD4MA
+
+targets:
+  Lifeline:
+    type: application
+    platform: iOS
+    sources:
+      - path: Lifeline
+    dependencies:
+      # §v3 — the notification service extension rides inside the app.
+      - target: LoosePush
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.lifelinecly.app
+        INFOPLIST_FILE: Lifeline/Info.plist
+        MARKETING_VERSION: "1.0"
+        CURRENT_PROJECT_VERSION: "1"
+        SWIFT_EMIT_LOC_STRINGS: YES
+        ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
+        ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME: AccentColor
+        CODE_SIGN_ENTITLEMENTS: Lifeline/Lifeline.entitlements
+
+  # §v3 workstream 5 — where a relayed knock becomes words. The relay's
+  # payload is a fixed placeholder marked mutable-content; this extension
+  # fetches the real title and body from the user's own engine and swaps
+  # them in before the notification is shown. Shares TokenStore with the
+  # app — same file, both targets — so the credentials have one shape.
+  LoosePush:
+    type: app-extension
+    platform: iOS
+    sources:
+      - path: PushExtension
+      - path: Lifeline/Sync/TokenStore.swift
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.lifelinecly.app.push
+        # Swift 5 for this one target: UNNotificationServiceExtension's
+        # completion-handler API predates Sendable, and fighting strict
+        # concurrency inside an Apple callback shape buys nothing here.
+        SWIFT_VERSION: "5.0"
+        # Xcode's previews machinery splits Debug builds into a stub
+        # executable plus a .debug.dylib holding the real code — and the
+        # extension point resolves NSExtensionPrincipalClass against the
+        # stub, finds nothing, and silently delivers the original payload.
+        # Days of "why won't it run" live in this one line.
+        ENABLE_DEBUG_DYLIB: NO
+        CODE_SIGN_ENTITLEMENTS: PushExtension/PushExtension.entitlements
+    info:
+      path: PushExtension/Info.plist
+      properties:
+        CFBundleDisplayName: Loose Ends
+        NSExtension:
+          NSExtensionPointIdentifier: com.apple.usernotifications.service
+          NSExtensionPrincipalClass: $(PRODUCT_MODULE_NAME).NotificationService
+
+  LifelineTests:
+    type: bundle.unit-test
+    platform: iOS
+    sources:
+      - path: LifelineTests
+    dependencies:
+      - target: Lifeline
+    settings:
+      base:
+        GENERATE_INFOPLIST_FILE: YES
+
+schemes:
+  Lifeline:
+    build:
+      targets:
+        Lifeline: all
+    run:
+      config: Debug
+      # The simulator + Xcode's Main Thread Checker trip a spurious
+      # "-[OS_dispatch_mach_msg _setContext:] unrecognized selector" crash on
+      # launch. The app is fine without the debugger; disable the checker.
+      disableMainThreadChecker: true
+    test:
+      config: Debug
+      targets:
+        - LifelineTests

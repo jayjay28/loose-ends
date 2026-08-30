@@ -1,0 +1,69 @@
+{
+  "events": [
+    {
+      "id": "cal-2001",
+      "calendarId": "primary",
+      "summary": "Iris — Dr. Bell (pediatrics)",
+      "description": "Rash follow-up. Booked by phone.",
+      "location": "Presidio Pediatrics, 2210 Lake St",
+      "start": "2026-07-29T21:40:00+00:00",
+      "end": "2026-07-29T22:10:00+00:00",
+      "status": "confirmed",
+      "attendees": ["alex.carter@gmail.com"],
+      "selfResponse": "accepted",
+      "updated": "2026-07-24T15:02:00+00:00"
+    },
+    {
+      "id": "cal-2002",
+      "calendarId": "primary",
+      "summary": "Grandma's 80th",
+      "description": "Carter family, Pasadena. Sara has the cake.",
+      "location": "Pasadena, CA",
+      "start": "2026-08-04T19:00:00+00:00",
+      "end": "2026-08-04T23:00:00+00:00",
+      "status": "confirmed",
+      "attendees": ["alex.carter@gmail.com", "eileen.carter@icloud.com"],
+      "selfResponse": "accepted",
+      "updated": "2026-07-15T02:00:00+00:00"
+    },
+    {
+      "id": "cal-2003",
+      "calendarId": "primary",
+      "summary": "Dinner at the Hendersons'",
+      "description": "7pm, their place.",
+      "location": "",
+      "start": "2026-08-02T02:00:00+00:00",
+      "end": "2026-08-02T05:00:00+00:00",
+      "status": "confirmed",
+      "attendees": ["alex.carter@gmail.com", "j.henderson@gmail.com"],
+      "selfResponse": "needsAction",
+      "updated": "2026-07-21T22:20:00+00:00"
+    },
+    {
+      "id": "cal-2004",
+      "calendarId": "primary",
+      "summary": "Marin ride w/ Theo",
+      "description": "",
+      "location": "Sausalito ferry terminal",
+      "start": "2026-07-26T15:00:00+00:00",
+      "end": "2026-07-26T20:00:00+00:00",
+      "status": "confirmed",
+      "attendees": ["alex.carter@gmail.com"],
+      "selfResponse": "accepted",
+      "updated": "2026-07-21T18:00:00+00:00"
+    },
+    {
+      "id": "cal-2005",
+      "calendarId": "contacts",
+      "summary": "Maya's birthday",
+      "description": "",
+      "location": "",
+      "start": "2026-09-11T00:00:00+00:00",
+      "end": "2026-09-12T00:00:00+00:00",
+      "status": "confirmed",
+      "attendees": [],
+      "selfResponse": null,
+      "updated": "2026-01-01T00:00:00+00:00"
+    }
+  ]
+}
