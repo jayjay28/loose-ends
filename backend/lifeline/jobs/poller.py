@@ -15,7 +15,7 @@ from ..assistant import sweeps, worker
 from ..completion import engine
 from ..config import get_config
 from ..extraction import pipeline, topics
-from ..ingestion import applecal, applemail, imessage
+from ..ingestion import applecal, applemail, imessage, notifications
 from ..notifications import scheduler
 from ..ranking import learning, scorer
 from . import health
@@ -57,6 +57,15 @@ def poll_sources() -> Dict[str, Any]:
         thread_titles.sweep()
     except Exception as exc:
         log.warning("title sweep failed: %s", exc)
+
+    # §v3 — every other app, through the one thing they all do: notify.
+    # A sampled window rather than an archive, so a poll that finds nothing
+    # is the normal case for a user who clears their notifications.
+    try:
+        result["notifications"] = notifications.poll()
+    except Exception as exc:
+        log.warning("notifications poll failed: %s", exc)
+        result["notifications_error"] = str(exc)
 
     # §v2.8 — the local Calendar store, synced by the OS itself. Google
     # calendars land here through the OS, so this reads them without an API,

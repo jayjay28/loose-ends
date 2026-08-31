@@ -36,6 +36,7 @@ setup gate.
 from __future__ import annotations
 
 import json
+import os
 import logging
 import sqlite3
 import subprocess
@@ -224,6 +225,31 @@ def check_mail() -> Check:
     cursor = db.get_sync_state(applemail.CURSOR_KEY)
     return Check("mail", OK,
                  f"readable — {root.name}" + (" (incremental)" if cursor else " (first run pending)"))
+
+
+def check_notifications() -> Check:
+    """Can we sample the notification store, and is anything in it?
+
+    An empty window is a normal result, not a fault: the store is what
+    Notification Center currently holds, and a user who clears their
+    notifications leaves nothing behind to read.
+    """
+    from .ingestion import notifications as notif
+
+    if os.environ.get("LIFELINE_NO_NOTIFICATIONS"):
+        return Check("notifications", SKIP, "switched off (LIFELINE_NO_NOTIFICATIONS)")
+    if not notif.STORE.exists():
+        return Check("notifications", SKIP, "no notification store on this machine")
+    if not notif.readable():
+        return Check("notifications", FAIL, "the store exists but can't be read",
+                     "grant Full Disk Access to /bin/zsh — the same grant Messages needs")
+    window = notif.read_store(notif.STORE)
+    apps = notif.seen_apps()
+    if not window and not apps:
+        return Check("notifications", SKIP, "nothing in the window yet",
+                     "normal if notifications were just cleared — the next poll re-samples")
+    return Check("notifications", OK,
+                 f"{len(window)} in the window, {len(apps)} apps seen so far")
 
 
 def check_imessage() -> Check:
@@ -419,6 +445,7 @@ CHECKS: List[Callable[[], Any]] = [
     check_anthropic,
     check_gemini,
     check_mail,
+    check_notifications,
     check_imessage,
     check_freshness,
     check_attachments,

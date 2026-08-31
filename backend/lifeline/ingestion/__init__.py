@@ -5,7 +5,7 @@ from pathlib import Path
 from typing import Dict
 
 from ..config import REPO_ROOT
-from . import applecal, applemail, invites, imessage, mail, whatsapp
+from . import applecal, applemail, invites, imessage, mail, notifications, whatsapp
 from .base import IdentityResolver, load_people
 
 SAMPLE_DIR = REPO_ROOT / "sample_data"
@@ -37,5 +37,6 @@ __all__ = [
     "load_people",
     "load_sample_corpus",
     "mail",
+    "notifications",
     "whatsapp",
 ]

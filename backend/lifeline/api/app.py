@@ -1786,6 +1786,26 @@ def pair_claim(body: PairClaimIn) -> Dict[str, Any]:
             "urls": transport.urls()}
 
 
+@app.get("/sources/notifications")
+def notification_sources() -> Dict[str, Any]:
+    """Which apps this engine has read notifications from, and how many.
+
+    §v3 — the answer to "what is it actually reading?", which this source has
+    to be able to give on demand: it samples every app's notifications, which
+    is the most intrusive-*feeling* thing the engine does even though it never
+    leaves the Mac. A number per app, and an off switch, beat a promise.
+    """
+    import os
+
+    from ..ingestion import notifications as notif
+
+    return {
+        "readable": notif.readable(),
+        "enabled": not os.environ.get("LIFELINE_NO_NOTIFICATIONS"),
+        "apps": notif.seen_apps(),
+    }
+
+
 @app.get("/transport")
 def transport_doors() -> Dict[str, Any]:
     """§v3 ws4 — the engine's current doors. Paired phones refresh this on
