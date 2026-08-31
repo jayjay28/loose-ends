@@ -20,12 +20,14 @@ def test_poll_sources_reads_every_local_door(monkeypatch):
     nothing that can be "not configured" except an app the user doesn't use."""
     monkeypatch.setattr(poller.imessage, "poll", lambda: 0)
     monkeypatch.setattr(poller.applemail, "poll", lambda: 7)
+    monkeypatch.setattr(poller.whatsapp, "poll", lambda: 2)
     monkeypatch.setattr(poller.notifications, "poll", lambda: 5)
     monkeypatch.setattr(poller.applecal, "poll", lambda: 3)
 
     result = poller.poll_sources()
 
-    assert result == {"imessage": 0, "mail": 7, "notifications": 5, "applecal": 3}
+    assert result == {"imessage": 0, "mail": 7, "whatsapp": 2,
+                      "notifications": 5, "applecal": 3}
 
 
 def test_poll_sources_isolates_one_failing_door(monkeypatch):
@@ -35,6 +37,7 @@ def test_poll_sources_isolates_one_failing_door(monkeypatch):
 
     monkeypatch.setattr(poller.imessage, "poll", lambda: 0)
     monkeypatch.setattr(poller.applemail, "poll", explode)
+    monkeypatch.setattr(poller.whatsapp, "poll", lambda: 0)
     monkeypatch.setattr(poller.notifications, "poll", lambda: 0)
     monkeypatch.setattr(poller.applecal, "poll", lambda: 4)
 
@@ -48,6 +51,7 @@ def test_an_absent_mail_store_is_a_zero_not_a_failure(monkeypatch):
     """A Mac without Apple Mail set up is a normal Mac, not a broken one."""
     monkeypatch.setattr(poller.imessage, "poll", lambda: 0)
     monkeypatch.setattr(poller.applemail, "store_root", lambda: None)
+    monkeypatch.setattr(poller.whatsapp, "poll", lambda: 0)
     monkeypatch.setattr(poller.notifications, "poll", lambda: 0)
     monkeypatch.setattr(poller.applecal, "poll", lambda: 0)
 

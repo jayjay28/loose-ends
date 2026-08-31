@@ -19,10 +19,17 @@ NOW = datetime(2026, 7, 27, 9, 0, tzinfo=timezone.utc)
 @pytest.fixture(autouse=True)
 def fresh_db(tmp_path, monkeypatch):
     monkeypatch.setenv("LIFELINE_OFFLINE", "1")
-    # The live Apple Calendar store must never be read by a test — the same
-    # law the audit wrote for chat.db. Tests that want the reader pass db_path.
-    from lifeline.ingestion import applecal
+    # No test may read a live store. This began as one line for chat.db after
+    # the audit, and every reader added since has to join it: the suite once
+    # pulled 19 real items out of the author's own WhatsApp database because
+    # WhatsApp's container — unlike chat.db's — isn't behind Full Disk Access
+    # and so nothing stopped it. Tests that exercise a reader pass an explicit
+    # path to a fixture store.
+    from lifeline.ingestion import applecal, applemail, notifications, whatsapp
     monkeypatch.setattr(applecal, "STORE", tmp_path / "no-such-Calendar.sqlitedb")
+    monkeypatch.setattr(applemail, "MAIL_ROOT", tmp_path / "no-such-Mail")
+    monkeypatch.setattr(whatsapp, "LIVE_STORE", tmp_path / "no-such-ChatStorage.sqlite")
+    monkeypatch.setattr(notifications, "STORE", tmp_path / "no-such-noted-db")
     set_config(Config(db_path=tmp_path / "test.db", offline_extraction=True))
     db.reset_connection()
     db.get_connection()

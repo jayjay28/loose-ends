@@ -227,6 +227,28 @@ def check_mail() -> Check:
                  f"readable — {root.name}" + (" (incremental)" if cursor else " (first run pending)"))
 
 
+def check_whatsapp() -> Check:
+    """Open WhatsApp's own store and count what's in it.
+
+    Unlike Messages and Mail this one needs no Full Disk Access — it lives in
+    a group container — so the only two outcomes are "the desktop app is
+    installed" and "it isn't".
+    """
+    from .ingestion import whatsapp
+
+    if not whatsapp.LIVE_STORE.exists():
+        return Check("whatsapp", SKIP, "WhatsApp Desktop isn't installed on this Mac",
+                     "install it and sign in if WhatsApp is where your conversations are")
+    rows = whatsapp.read_store(whatsapp.LIVE_STORE)
+    if not rows:
+        return Check("whatsapp", WARN, "the store is there but no messages came out",
+                     "WhatsApp may have changed its schema — check the log for what was found")
+    cursor = db.get_sync_state(whatsapp.CURSOR_KEY)
+    return Check("whatsapp", OK,
+                 f"{len(rows)} messages readable"
+                 + (f", ingested through #{cursor}" if cursor else " (first run pending)"))
+
+
 def check_notifications() -> Check:
     """Can we sample the notification store, and is anything in it?
 
@@ -446,6 +468,7 @@ CHECKS: List[Callable[[], Any]] = [
     check_gemini,
     check_mail,
     check_notifications,
+    check_whatsapp,
     check_imessage,
     check_freshness,
     check_attachments,

@@ -15,7 +15,7 @@ from ..assistant import sweeps, worker
 from ..completion import engine
 from ..config import get_config
 from ..extraction import pipeline, topics
-from ..ingestion import applecal, applemail, imessage, notifications
+from ..ingestion import applecal, applemail, imessage, notifications, whatsapp
 from ..notifications import scheduler
 from ..ranking import learning, scorer
 from . import health
@@ -57,6 +57,15 @@ def poll_sources() -> Dict[str, Any]:
         thread_titles.sweep()
     except Exception as exc:
         log.warning("title sweep failed: %s", exc)
+
+    # WhatsApp's desktop app keeps its own store, in a group container that
+    # needs no Full Disk Access at all. For anyone whose main channel this is,
+    # it is the difference between the product working and not.
+    try:
+        result["whatsapp"] = whatsapp.poll()
+    except Exception as exc:
+        log.warning("whatsapp poll failed: %s", exc)
+        result["whatsapp_error"] = str(exc)
 
     # §v3 — every other app, through the one thing they all do: notify.
     # A sampled window rather than an archive, so a poll that finds nothing
