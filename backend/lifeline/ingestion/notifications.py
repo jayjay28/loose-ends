@@ -64,12 +64,22 @@ _BODY_KEYS = ("body",)
 # Our own notifications are not news to us.
 _SELF = ("dev.clyon.looseends",)
 
+# Apps we already read properly. A notification is a truncated glimpse of a
+# message we hold in full — storing both would double every iMessage and every
+# email as a worse copy of itself. The first live probe found exactly this:
+# 7 of 13 notifications on the machine were Messages and Mail.
+_ALREADY_READ = re.compile(
+    r"^com\.apple\.(mobilesms|iChat|MobileSMS|mail|Mail|iCal|Calendar)$",
+    re.I,
+)
+
 # Apps whose notifications are never a loose end: the OS talking to itself,
-# and the ambient noise of media and games. Matched on the bundle id.
+# and the ambient noise of media, stores and games. Matched on the bundle id.
 _NOISE = re.compile(
     r"""
-      ^com\.apple\.((Software)?Update|iTunes|Music|TV|Podcasts
-                    |photolibraryd|ScreenTime|findmy|weather|Siri|clock|Passbook)
+      ^com\.apple\.((Software)?Update|iTunes|Music|TV|Podcasts|appstore
+                    |photolibraryd|ScreenTime|screentime|findmy|weather|Siri
+                    |clock|Passbook|news|stocks|tips|Maps)
     | ^com\.(spotify|netflix|hulu|disney)\.
     | game
     """,
@@ -221,6 +231,8 @@ def is_worth_keeping(item: Dict[str, Any]) -> bool:
     """
     bundle = item.get("bundle") or ""
     if any(bundle.startswith(prefix) for prefix in _SELF):
+        return False
+    if _ALREADY_READ.match(bundle):
         return False
     if _NOISE.search(bundle):
         return False

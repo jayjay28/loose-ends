@@ -285,3 +285,20 @@ def test_the_reader_can_be_switched_off(store, monkeypatch):
     monkeypatch.setenv("LIFELINE_NO_NOTIFICATIONS", "1")
     assert notifications.poll(path=store) == 0
     assert db.messages_since("2000-01-01", source="notification") == []
+
+
+def test_apps_we_already_read_are_dropped_not_duplicated():
+    """The first live probe: 7 of 13 notifications on a real Mac were
+    Messages and Mail — both of which the engine reads in full from their own
+    stores. A truncated glimpse of a message we already hold is a worse copy
+    of it, not a second source."""
+    for bundle in ("com.apple.mobilesms", "com.apple.mail", "com.apple.iCal"):
+        assert notifications.is_worth_keeping(
+            {"bundle": bundle, "title": "Dev Shah", "body": "hello"}) is False, bundle
+
+
+def test_the_apps_worth_having_still_get_through():
+    for bundle in ("com.tinyspeck.slackmacgap", "net.whatsapp.WhatsApp",
+                   "org.whispersystems.signal-desktop", "com.chase.mobile"):
+        assert notifications.is_worth_keeping(
+            {"bundle": bundle, "title": "Someone", "body": "something"}) is True, bundle
