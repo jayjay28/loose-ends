@@ -5,7 +5,7 @@ from pathlib import Path
 from typing import Dict
 
 from ..config import REPO_ROOT
-from . import gcal, gmail, google_auth, imessage, whatsapp
+from . import applecal, applemail, invites, imessage, mail, whatsapp
 from .base import IdentityResolver, load_people
 
 SAMPLE_DIR = REPO_ROOT / "sample_data"
@@ -22,19 +22,20 @@ def load_sample_corpus(sample_dir: Path = SAMPLE_DIR) -> Dict[str, int]:
             whatsapp.import_export(sample_dir / "whatsapp_dev_shah.txt", "Dev Shah", resolver=resolver)
             + whatsapp.import_export(sample_dir / "whatsapp_priya.txt", "Priya Raman", resolver=resolver)
         ),
-        "gmail": gmail.import_sample(sample_dir / "gmail_sample.json"),
-        "calendar": gcal.import_sample(sample_dir / "calendar_sample.json"),
+        "mail": mail.import_sample(sample_dir / "gmail_sample.json"),
+        "calendar": invites.import_sample(sample_dir / "calendar_sample.json"),
     }
     return counts
 
 
 __all__ = [
     "IdentityResolver",
-    "gcal",
-    "gmail",
-    "google_auth",
+    "applecal",
+    "applemail",
     "imessage",
+    "invites",
     "load_people",
     "load_sample_corpus",
+    "mail",
     "whatsapp",
 ]

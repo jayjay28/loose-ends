@@ -75,7 +75,7 @@ class Match:
     reasons: List[str] = field(default_factory=list)
     evidence_ref: str = ""
     evidence_text: str = ""
-    source: str = "gmail"
+    source: str = "mail"
 
     @property
     def resolution(self) -> Optional[str]:
@@ -160,14 +160,14 @@ def date_agreement(item: Item, evidence_date: Optional[str], tolerance_days: flo
     return None
 
 
-# ------------------------------------------------------------------ gmail
+# ------------------------------------------------------------------- mail
 def match_email(item: Item, message: Message, evidence_floor: Optional[str] = None) -> Match:
     """Score an email as evidence that *item* is done.
 
     ``evidence_floor`` is the earliest timestamp that can count; the caller
     widens it for follow-ups, whose evidence may pre-date the nudge.
     """
-    match = Match(source="gmail", evidence_ref=message.id)
+    match = Match(source="mail", evidence_ref=message.id)
     metadata = message.metadata or {}
     subject = metadata.get("subject", "")
     haystack = f"{subject}\n{message.text}"

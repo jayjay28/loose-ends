@@ -155,7 +155,7 @@ def type_weight(item: Item) -> Signal:
 
 
 def pair_weight(item: Item) -> Signal:
-    """Sender x type — "Maya's purchase requests" behaves unlike "Dev's links"."""
+    """Sender x type — "Tess's purchase requests" behaves unlike "Dev's links"."""
     if not item.person_id:
         return 0.0, "no sender/type history"
     learned = db.get_weight_row(f"pair:{item.person_id}/{item.type}")

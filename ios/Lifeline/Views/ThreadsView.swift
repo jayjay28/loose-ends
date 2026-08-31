@@ -493,7 +493,7 @@ struct ThreadsView: View {
             Button {
                 commit(.success) { model?.resolve(thread) }
             } label: {
-                Label("Tie off", systemImage: "checkmark")
+                Label("Close", systemImage: "checkmark")
             }
             .tint(Theme.brand)
         }
@@ -759,7 +759,7 @@ private struct NothingRunning: View {
             Image(systemName: "checkmark.circle")
                 .font(.system(size: 30, weight: .light))
                 .foregroundStyle(Theme.good)
-            Text("All tied off — for now")
+            Text("Nothing open — for now")
                 .font(Theme.serif(19, .semibold))
                 .foregroundStyle(Theme.ink)
             Text("Your mail is being read as we speak. Add a loose end with +, or give it an hour and let one find you.")

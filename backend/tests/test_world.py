@@ -16,14 +16,14 @@ from tests.conftest import make_conversation, make_message, make_person
 # ---------------------------------------------------------------- identity
 
 def test_a_person_is_an_entity_under_every_handle():
-    make_person("lia", "Lia Carter", relationship=None,
-                handles=["+1 (917) 555-0142", "Lia@example.com"])
+    make_person("nora", "Nora Carter", relationship=None,
+                handles=["+1 (917) 555-0142", "Nora@example.com"])
 
-    for handle in ["Lia Carter", "lia carter", "+19175550142", "917-555-0142",
-                   "lia@example.com"]:
+    for handle in ["Nora Carter", "nora carter", "+19175550142", "917-555-0142",
+                   "nora@example.com"]:
         entity = world.resolve(handle)
         assert entity is not None, handle
-        assert entity.id == "lia"
+        assert entity.id == "nora"
         assert entity.kind == "person"
 
 
@@ -39,27 +39,27 @@ def test_new_entities_get_opaque_ids_and_dedupe_by_alias():
 
 
 def test_renaming_a_person_updates_the_entity_and_keeps_old_aliases():
-    make_person("maya", "Maya", relationship="spouse")
-    db.upsert_person(Person(id="maya", display_name="Maya Carter",
+    make_person("tess", "Tess", relationship="spouse")
+    db.upsert_person(Person(id="tess", display_name="Tess Carter",
                             relationship="spouse", handles=[]))
 
-    assert world.resolve("Maya Carter").id == "maya"
-    assert world.resolve("Maya").id == "maya", "the old name still answers"
-    assert world.resolve("maya carter").name == "Maya Carter"
+    assert world.resolve("Tess Carter").id == "tess"
+    assert world.resolve("Tess").id == "tess", "the old name still answers"
+    assert world.resolve("tess carter").name == "Tess Carter"
 
 
 # -------------------------------------------------------------------- facts
 
 def test_a_fact_carries_its_receipt():
-    make_person("lia", "Lia Carter", relationship=None)
+    make_person("nora", "Nora Carter", relationship=None)
     make_conversation("gmail:t1", source="gmail", name="school")
-    message = make_message("Lia's action plan attached", conversation_id="gmail:t1",
+    message = make_message("Nora's action plan attached", conversation_id="gmail:t1",
                            person_id=None, external_id="g-plan", source="gmail")
 
-    fact = world.record_fact("lia", "attends",
+    fact = world.record_fact("nora", "attends",
                              "Lakeview Public Schools preschool",
                              message_id=message.id, confidence=0.9)
-    stored = world.facts_for("lia")
+    stored = world.facts_for("nora")
     assert len(stored) == 1
     assert stored[0].message_id == message.id, "the receipt"
     assert stored[0].value == "Lakeview Public Schools preschool"
@@ -84,14 +84,14 @@ def test_the_same_claim_refreshes_a_different_one_supersedes():
 # --------------------------------------------------------------- resolution
 
 def test_a_question_resolves_to_the_entities_it_mentions():
-    """The step that runs in front of retrieval: 'Where is Lia's daycare?'
-    must know 'Lia' is a person before any search happens."""
-    make_person("lia", "Lia Carter", relationship=None)
+    """The step that runs in front of retrieval: 'Where is Nora's daycare?'
+    must know 'Nora' is a person before any search happens."""
+    make_person("nora", "Nora Carter", relationship=None)
     make_person("milo", "Milo", relationship=None)
     world.upsert("org", "Lakeview Public Schools")
 
-    found = world.mentioned_in("Where is Lia's daycare?")
-    assert [e.id for e in found] == ["lia"]
+    found = world.mentioned_in("Where is Nora's daycare?")
+    assert [e.id for e in found] == ["nora"]
 
     found = world.mentioned_in("did Lakeview Public Schools email about Milo")
     assert {e.name for e in found} == {"Lakeview Public Schools", "Milo"}
@@ -143,7 +143,7 @@ def _classifier_says(monkeypatch, payload):
 
 
 def test_a_message_about_lia_creates_her(monkeypatch):
-    """The whole point of the phase. Lia has never sent a message, so no
+    """The whole point of the phase. Nora has never sent a message, so no
     ingestion path could ever create her — but the preschool nurse's email
     *states* who she is, and the pass that reads it now has somewhere to put
     that."""
@@ -152,14 +152,14 @@ def test_a_message_about_lia_creates_her(monkeypatch):
     make_conversation("gmail:t1", source="gmail", name="Rosa Alvarez")
     make_person("rosemary", "Rosa Alvarez", relationship=None)
     message = make_message(
-        "Please see the updated universal form and Lia's action plan attached.",
+        "Please see the updated universal form and Nora's action plan attached.",
         conversation_id="gmail:t1", person_id="rosemary",
         external_id="g-nurse", source="gmail",
     )
     pipeline = _classifier_says(monkeypatch, {
         "items": [],
         "entities": [
-            {"message_id": message.id, "name": "Lia", "kind": "person",
+            {"message_id": message.id, "name": "Nora", "kind": "person",
              "confidence": 0.9,
              "claims": [
                  {"predicate": "attends", "value": "Lakeview Public Schools preschool"},
@@ -171,9 +171,9 @@ def test_a_message_about_lia_creates_her(monkeypatch):
     })
     pipeline.run(rescore=False)
 
-    lia = world.resolve("Lia")
-    assert lia is not None, "she exists now"
-    facts = {f.predicate: f for f in world.facts_for(lia.id)}
+    nora = world.resolve("Nora")
+    assert nora is not None, "she exists now"
+    facts = {f.predicate: f for f in world.facts_for(nora.id)}
     assert facts["attends"].value == "Lakeview Public Schools preschool"
     assert facts["attends"].message_id == message.id, "the receipt"
     # ... and the claim about the nurse landed on her *existing* entity.
@@ -208,7 +208,7 @@ def test_malformed_claims_drop_without_costing_the_items(monkeypatch):
 
     make_conversation("imessage:t1", name="Nia")
     make_person("nia", "Nia", relationship="partner")
-    message = make_message("can you grab diapers for Lia today",
+    message = make_message("can you grab diapers for Nora today",
                            person_id="nia", external_id="im-1")
     pipeline = _classifier_says(monkeypatch, {
         "items": [{"message_id": message.id, "type": "purchase",
@@ -217,9 +217,9 @@ def test_malformed_claims_drop_without_costing_the_items(monkeypatch):
         "entities": [
             {"message_id": message.id, "name": "", "kind": "person",
              "claims": [{"predicate": "x", "value": "y"}]},          # no name
-            {"message_id": message.id, "name": "Lia", "kind": "creature",
+            {"message_id": message.id, "name": "Nora", "kind": "creature",
              "claims": [{"predicate": "is", "value": "a child"}]},    # bad kind
-            {"message_id": message.id, "name": "Lia", "kind": "person",
+            {"message_id": message.id, "name": "Nora", "kind": "person",
              "claims": "not a list", "confidence": "very"},           # both coercions
             {"message_id": "unknown", "name": "Ghost", "kind": "person",
              "claims": [{"predicate": "haunts", "value": "nothing"}]},
@@ -229,9 +229,9 @@ def test_malformed_claims_drop_without_costing_the_items(monkeypatch):
     assert len(created) == 1, "the item still landed"
     assert created[0].entities.item == "diapers"
     assert world.resolve("Ghost") is None
-    # "Lia" with claims="not a list" upserts nothing (no valid claim ever
+    # "Nora" with claims="not a list" upserts nothing (no valid claim ever
     # forced the entity into being).
-    assert world.resolve("Lia") is None
+    assert world.resolve("Nora") is None
 
 
 def test_claim_sprawl_is_capped(monkeypatch):
@@ -258,11 +258,11 @@ def test_claim_sprawl_is_capped(monkeypatch):
 def test_grounding_turns_a_name_into_search_vocabulary():
     from lifeline import world
 
-    make_person("lia", "Lia Carter", relationship=None)
-    world.record_fact("lia", "attends", "Lakeview Public Schools preschool")
+    make_person("nora", "Nora Carter", relationship=None)
+    world.record_fact("nora", "attends", "Lakeview Public Schools preschool")
 
-    block = world.grounding("Where is Lia's daycare?")
-    assert "Lia Carter" in block
+    block = world.grounding("Where is Nora's daycare?")
+    assert "Nora Carter" in block
     assert "Lakeview Public Schools preschool" in block, \
         "the institution's name is now available as a search term"
     assert world.grounding("nothing known here") == "", \
@@ -312,15 +312,15 @@ def test_the_worker_brief_opens_grounded(monkeypatch):
 def test_merge_is_an_alias_rewrite_nothing_deleted():
     from lifeline import world as w
 
-    a = w.upsert("person", "Boooooby Carter")
-    make_person("boooooby-carter", "Boooooby Carter 2", relationship=None,
+    a = w.upsert("person", "Robbbbie Carter")
+    make_person("robbbbie-carter", "Robbbbie Carter 2", relationship=None,
                 handles=["+19995550177"])
     w.record_fact(a.id, "relation_to_user", "brother")
-    w.record_fact("boooooby-carter", "relation_to_user", "brother")
+    w.record_fact("robbbbie-carter", "relation_to_user", "brother")
 
-    assert w.merge_entities(a.id, "boooooby-carter") is True
-    assert w.resolve("Boooooby Carter").id == "boooooby-carter", "aliases repointed"
-    active = w.facts_for("boooooby-carter")
+    assert w.merge_entities(a.id, "robbbbie-carter") is True
+    assert w.resolve("Robbbbie Carter").id == "robbbbie-carter", "aliases repointed"
+    active = w.facts_for("robbbbie-carter")
     assert [f.value for f in active] == ["brother"], "duplicate facts collapsed"
     row = db.get_connection().execute("select 1 from entities where id=?", (a.id,)).fetchone()
     assert row is not None, "the shell remains; nothing dangles"

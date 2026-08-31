@@ -62,7 +62,7 @@ def _norm(alias: str) -> str:
 
 def resolve(text: str) -> Optional[Entity]:
     """The entity a name or handle refers to, or None. Exact on the alias
-    index — 'Lia', 'lia', '+1 (917) …' and 'lia@…' all land on the same row."""
+    index — 'Nora', 'nora', '+1 (917) …' and 'nora@…' all land on the same row."""
     alias = _norm(text or "")
     if not alias:
         return None
@@ -80,7 +80,7 @@ def mentioned_in(text: str, limit: int = 6) -> List[Entity]:
     per-token; multi-word aliases match as substrings of the lowered text."""
     lowered = (text or "").lower()
     tokens = set(_WORD.findall(lowered))
-    # "Lia's daycare" mentions Lia; the possessive is not part of the name.
+    # "Nora's daycare" mentions Nora; the possessive is not part of the name.
     tokens |= {t[:-2] for t in tokens if t.endswith("'s")}
     if not tokens:
         return []
@@ -355,7 +355,7 @@ def mirror_person(person) -> None:
     aliases = {(person.display_name or "").strip().lower()}
     first = (person.display_name or "").strip().split(" ")[0].lower()
     if len(first) > 2 and first.isalpha():
-        aliases.add(first)          # people say "Lia"; Contacts says "Lia Carter"
+        aliases.add(first)          # people say "Nora"; Contacts says "Nora Carter"
     aliases.update(normalise_handle(h) for h in (person.handles or []))
     for alias in aliases:
         if alias:
@@ -388,8 +388,8 @@ def grounding(text: str, limit: int = 5) -> str:
     """What the store already knows about the things a question names —
     the resolution step that runs *before* retrieval (§v2.8 phase 4).
 
-    "Where is Lia's daycare?" used to go straight to a keyword search for
-    'daycare'. Now the question first resolves Lia, and her facts supply the
+    "Where is Nora's daycare?" used to go straight to a keyword search for
+    'daycare'. Now the question first resolves Nora, and her facts supply the
     vocabulary the search actually needs — the institution's name, not the
     user's word for it. Empty string when nothing is known: the loop should
     see nothing rather than a header announcing nothing.
@@ -477,7 +477,7 @@ def search(query: str, limit: int = 6) -> List[dict]:
 # ---------------------------------------------------------------- kinship
 
 # High-precision shapes only: a name adjacent to a first-person kinship word.
-# "Milo (my son)" · "my wife Nia" · "my brother, Bobby". A bare "my son"
+# "Milo (my son)" · "my wife Nia" · "my brother, Robbie". A bare "my son"
 # with no name nearby is left for the LLM pass, which must attach a name that
 # resolves before anything is written.
 _KIN_WORD = "wife|husband|son|daughter|mother|mom|father|dad|brother|sister"

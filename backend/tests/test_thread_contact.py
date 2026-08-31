@@ -44,8 +44,8 @@ def test_a_thread_has_no_contact_by_default():
 
 
 def test_a_contact_can_be_attached_at_creation():
-    thread = threads.create(title="ask Maya about the trip", contact_person_id="maya")
-    assert db.get_thread(thread.id).contact_person_id == "maya"
+    thread = threads.create(title="ask Tess about the trip", contact_person_id="tess")
+    assert db.get_thread(thread.id).contact_person_id == "tess"
 
 
 def test_an_unknown_person_is_refused_at_creation():
@@ -57,7 +57,7 @@ def test_an_unknown_person_is_refused_at_creation():
 
 def test_a_contact_can_be_set_and_cleared_later():
     thread = threads.create(title="a loop")
-    assert threads.set_contact(thread.id, "maya").contact_person_id == "maya"
+    assert threads.set_contact(thread.id, "tess").contact_person_id == "tess"
     assert threads.set_contact(thread.id, None).contact_person_id is None
 
 
@@ -74,26 +74,26 @@ def test_a_declared_thread_with_a_contact_has_someone_to_write_to():
     bare = threads.create(title="chase the plumber")
     assert threads.draft_brief(bare.id)["people"] == []
 
-    named = threads.create(title="chase the plumber", contact_person_id="maya")
+    named = threads.create(title="chase the plumber", contact_person_id="tess")
     people = threads.draft_brief(named.id)["people"]
-    assert [p["person_id"] for p in people] == ["maya"]
+    assert [p["person_id"] for p in people] == ["tess"]
     assert people[0]["is_the_contact"] is True
 
 
 def test_the_contact_comes_first_among_several_people():
     """A thread can touch several people. The writer shouldn't have to guess
     which one the user meant."""
-    make_person("bobby", "Bobby")
-    item = make_item(person_id="bobby", person="Bobby")
+    make_person("robbie", "Robbie")
+    item = make_item(person_id="robbie", person="Robbie")
     thread = threads.create(
         title="a loop",
         evidence=[Evidence(kind="item", ref_id=item.id)],
-        contact_person_id="maya",
+        contact_person_id="tess",
     )
     people = threads.draft_brief(thread.id)["people"]
-    assert people[0]["person_id"] == "maya"
+    assert people[0]["person_id"] == "tess"
     assert people[0]["is_the_contact"] is True
-    assert {p["person_id"] for p in people} == {"maya", "bobby"}
+    assert {p["person_id"] for p in people} == {"tess", "robbie"}
 
 
 def test_evidence_people_are_not_marked_as_the_contact():
@@ -106,22 +106,22 @@ def test_evidence_people_are_not_marked_as_the_contact():
 def test_draft_message_falls_back_to_the_thread_contact():
     """The payoff: "it knows who to contact". The model no longer has to
     supply a person_id it has no way to know."""
-    thread = threads.create(title="a loop", contact_person_id="maya")
+    thread = threads.create(title="a loop", contact_person_id="tess")
     drafted = []
     tool = registry.by_name(registry.draft_tools(drafted, thread=db.get_thread(thread.id)))["draft_message"]
     result = tool.fn(text="hey, still on for Friday?")
 
     assert result["drafted"] is True
-    assert drafted[0]["person_id"] == "maya"
+    assert drafted[0]["person_id"] == "tess"
 
 
 def test_an_explicit_person_still_wins_over_the_contact():
-    make_person("bobby", "Bobby")
-    thread = threads.create(title="a loop", contact_person_id="maya")
+    make_person("robbie", "Robbie")
+    thread = threads.create(title="a loop", contact_person_id="tess")
     drafted = []
     tool = registry.by_name(registry.draft_tools(drafted, thread=db.get_thread(thread.id)))["draft_message"]
-    tool.fn(person_id="bobby", text="hi")
-    assert drafted[0]["person_id"] == "bobby"
+    tool.fn(person_id="robbie", text="hi")
+    assert drafted[0]["person_id"] == "robbie"
 
 
 def test_drafting_without_a_person_or_a_contact_says_so():
@@ -135,7 +135,7 @@ def test_drafting_without_a_person_or_a_contact_says_so():
 def test_the_worker_gets_the_contact_aware_tool():
     """`scoped_for` builds the tool set per thread, so the fallback has to be
     bound there rather than at the flat global registry."""
-    thread = threads.create(title="a loop", contact_person_id="maya")
+    thread = threads.create(title="a loop", contact_person_id="tess")
     drafted = []
     tools = registry.scoped_for(db.get_thread(thread.id))
     assert "draft_message" in {t.name for t in tools}
@@ -144,14 +144,14 @@ def test_the_worker_gets_the_contact_aware_tool():
 # ------------------------------------------------------------- the wire
 def test_the_contact_round_trips_through_the_api(client):
     thread = threads.create(title="a loop")
-    body = client.post(f"/threads/{thread.id}/contact", json={"person_id": "maya"}).json()
-    assert body["contact_person_id"] == "maya"
+    body = client.post(f"/threads/{thread.id}/contact", json={"person_id": "tess"}).json()
+    assert body["contact_person_id"] == "tess"
     # Resolved for display, so a lane doesn't need a second round trip.
-    assert body["contact_name"] == "Maya"
+    assert body["contact_name"] == "Tess"
 
 
 def test_the_contact_can_be_cleared_through_the_api(client):
-    thread = threads.create(title="a loop", contact_person_id="maya")
+    thread = threads.create(title="a loop", contact_person_id="tess")
     body = client.post(f"/threads/{thread.id}/contact", json={"person_id": None}).json()
     assert body["contact_person_id"] is None
     assert body["contact_name"] is None
@@ -164,6 +164,6 @@ def test_an_unknown_contact_is_refused_by_the_api(client):
 
 
 def test_declaring_a_thread_with_a_contact_through_the_api(client):
-    body = client.post("/threads", json={"title": "chase the plumber", "contact_person_id": "maya"}).json()
-    assert body["contact_person_id"] == "maya"
-    assert body["contact_name"] == "Maya"
+    body = client.post("/threads", json={"title": "chase the plumber", "contact_person_id": "tess"}).json()
+    assert body["contact_person_id"] == "tess"
+    assert body["contact_name"] == "Tess"

@@ -28,9 +28,9 @@ enum DemoWorld {
     static func make() -> World {
         // 1 — HOT: a drafted move waiting on one answer.
         var bag = LifeThread(
-            id: "demo-bag", title: "Get Maya the croissant bag",
+            id: "demo-bag", title: "Get Tess the croissant bag",
             summary: "She's mentioned it twice since Fillmore.",
-            origin: .promotedFromItem, contactName: "Maya",
+            origin: .promotedFromItem, contactName: "Tess",
             openedAt: at(hoursAgo: 96), updatedAt: at(hoursAgo: 2),
             tier: "now", lane: .hot, unseen: 1,
             status: "needs_you", statusLabel: "Needs you",
@@ -58,8 +58,8 @@ enum DemoWorld {
             thread: bag,
             evidence: [ThreadEvidence(
                 kind: "message", refId: "demo-bag-msg",
-                title: "Maya", text: "Saw the Lemaire croissant bag in the window on Fillmore today. I want that bag.",
-                person: "Maya", timestamp: at(hoursAgo: 96), source: "imessage",
+                title: "Tess", text: "Saw the Lemaire croissant bag in the window on Fillmore today. I want that bag.",
+                person: "Tess", timestamp: at(hoursAgo: 96), source: "imessage",
                 role: "founding")],
             findings: [bagMove, bagNote])
 
@@ -74,7 +74,7 @@ enum DemoWorld {
         dinner.importance = 0.75
         dinner.deadline = DeadlineChip(
             date: at(daysAhead: 3), source: "inferred",
-            reason: "\"a week from Saturday\" in Maya's reminder, sent last Sunday")
+            reason: "\"a week from Saturday\" in Tess's reminder, sent last Sunday")
         let dinnerMove = Finding(
             id: "demo-dinner-move", kind: "action",
             headline: "A yes is drafted",
@@ -89,8 +89,8 @@ enum DemoWorld {
             thread: dinner,
             evidence: [ThreadEvidence(
                 kind: "message", refId: "demo-dinner-msg",
-                title: "Maya", text: "Reminder that the Hendersons' dinner is a week from Saturday and we still haven't RSVPd",
-                person: "Maya", timestamp: at(hoursAgo: 120), source: "imessage",
+                title: "Tess", text: "Reminder that the Hendersons' dinner is a week from Saturday and we still haven't RSVPd",
+                person: "Tess", timestamp: at(hoursAgo: 120), source: "imessage",
                 role: "founding")],
             findings: [dinnerMove])
 
@@ -155,7 +155,7 @@ enum DemoWorld {
             resolvedAt: at(hoursAgo: 26), resolvedBy: "system",
             updatedAt: at(hoursAgo: 26),
             tier: "index", lane: .done,
-            status: "finished", statusLabel: "Tied off")
+            status: "finished", statusLabel: "Closed")
         pickup.importance = 0.4
         let pickupDetail = ThreadDetail(thread: pickup)
 
@@ -203,7 +203,7 @@ enum DemoWorld {
             "answer": "Saturday evening is the Hendersons' dinner — you haven't RSVP'd yet, and a yes is drafted in that loose end. The calendar is clear otherwise.",
             "receipts": [[
                 "kind": "message", "ref_id": "demo-dinner-msg",
-                "source": "imessage", "label": "Maya, last Sunday",
+                "source": "imessage", "label": "Tess, last Sunday",
                 "detail": "Reminder that the Hendersons' dinner is a week from Saturday",
             ]],
             "knew": [], "trace": [],

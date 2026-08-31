@@ -445,7 +445,7 @@ def _name_score(needle: str, person) -> float:
     """How well a typed name matches a person, 0-1.
 
     Built from the actual misses in `loop_runs`: "booooby" never resolved to
-    "Boooooby 😛👅 Carter" (one letter out, plus emoji in the display name),
+    "Robbbbie 😛👅 Carter" (one letter out, plus emoji in the display name),
     and "Nia" never resolved to "Nia Coleman" — both because the old
     matcher was a plain substring scan and a shortest-name tie-break.
     """

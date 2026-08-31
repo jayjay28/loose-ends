@@ -30,8 +30,8 @@ class FakeRun:
 
 
 def test_an_answer_carries_its_receipts_and_what_was_known(client, monkeypatch):
-    make_person("lia", "Lia Carter", relationship=None)
-    world.record_fact("lia", "attends", "Brightwood Pre-School", confidence=0.9)
+    make_person("nora", "Nora Carter", relationship=None)
+    world.record_fact("nora", "attends", "Brightwood Pre-School", confidence=0.9)
     make_conversation("gmail:t1", source="gmail", name="Nia")
     message = make_message("Meet and Greet at Brightwood Pre-School Monday",
                            conversation_id="gmail:t1", person_id=None,
@@ -41,7 +41,7 @@ def test_an_answer_carries_its_receipts_and_what_was_known(client, monkeypatch):
     def fake_loop(prompt, **kwargs):
         assert "Brightwood Pre-School" in prompt, "grounding fed the prompt"
         return FakeRun(
-            "Lia's daycare is Brightwood Pre-School.",
+            "Nora's daycare is Brightwood Pre-School.",
             [{"name": "search_mail",
               "input": {"query": "Brightwood"},
               "result": json.dumps([{
@@ -51,19 +51,19 @@ def test_an_answer_carries_its_receipts_and_what_was_known(client, monkeypatch):
         )
 
     monkeypatch.setattr(assistant_loop, "run_loop", fake_loop)
-    body = client.post("/ask", json={"question": "Where is Lia's daycare?"}).json()
+    body = client.post("/ask", json={"question": "Where is Nora's daycare?"}).json()
 
-    assert body["answer"] == "Lia's daycare is Brightwood Pre-School."
+    assert body["answer"] == "Nora's daycare is Brightwood Pre-School."
     assert body["receipts"][0]["ref_id"] == message.id, "openable receipt"
     assert "Meet and Greet" in body["receipts"][0]["label"]
-    assert body["knew"][0]["entity"] == "Lia Carter"
+    assert body["knew"][0]["entity"] == "Nora Carter"
     assert body["knew"][0]["value"] == "Brightwood Pre-School"
     assert body["knew"][0]["fact_id"], "correctable by id"
     assert body["trace"], "the trace rides along"
 
     # ... and the card persists: the Ask surface is a reference.
     history = client.get("/asks").json()
-    assert history[0]["question"] == "Where is Lia's daycare?"
+    assert history[0]["question"] == "Where is Nora's daycare?"
     assert history[0]["receipts"][0]["ref_id"] == message.id
 
 

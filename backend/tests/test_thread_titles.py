@@ -68,7 +68,7 @@ def test_system_threads_and_headline_shaped_titles_are_untouched(monkeypatch):
     _provider_says(monkeypatch, "should never be used")
     from lifeline.models import ThreadOrigin
 
-    silence = threads.create(title="Maya went quiet", origin=ThreadOrigin.SILENCE)
+    silence = threads.create(title="Tess went quiet", origin=ThreadOrigin.SILENCE)
     assert titles.retitle(silence.id) is False
 
     assert titles.looks_raw("Pajama sets for Nia") is False

@@ -751,7 +751,7 @@ READ_TOOLS: List[Tool] = [
             {
                 "query": {"type": "string", "description": "keywords that appear in the text"},
                 "person_id": {"type": "string", "description": "restrict to one person"},
-                "source": {"type": "string", "enum": ["imessage", "gmail", "whatsapp"]},
+                "source": {"type": "string", "enum": ["imessage", "mail", "whatsapp"]},
                 "since": {"type": "string", "description": "ISO date/datetime lower bound"},
                 "until": {"type": "string", "description": "ISO date/datetime upper bound"},
                 "direction": {"type": "string", "enum": ["from_you", "from_them"]},
@@ -807,7 +807,7 @@ READ_TOOLS: List[Tool] = [
         description=(
             "Resolve a person by name, nickname, misspelling, email or phone "
             "number. ALWAYS call this before saying you don't know who someone "
-            "is — it matches loosely, so 'booooby' finds 'Boooooby Carter'. "
+            "is — it matches loosely, so 'booooby' finds 'Robbbbie Carter'. "
             "If the result has `alternatives`, several people match: name them "
             "and ask which, rather than picking one or asking who they are."
         ),

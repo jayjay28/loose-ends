@@ -15,7 +15,7 @@ from ..assistant import sweeps, worker
 from ..completion import engine
 from ..config import get_config
 from ..extraction import pipeline, topics
-from ..ingestion import applecal, gcal, gmail, google_auth, imessage
+from ..ingestion import applecal, applemail, imessage
 from ..notifications import scheduler
 from ..ranking import learning, scorer
 from . import health
@@ -40,23 +40,15 @@ def poll_sources() -> Dict[str, Any]:
         log.warning("imessage poll failed: %s", exc)
         result["imessage_error"] = str(exc)
 
-    # Gmail + Calendar — only when a Google account is connected.
-    if google_auth.is_connected():
-        try:
-            result["gmail"] = gmail.poll()
-        except Exception as exc:
-            log.warning("gmail poll failed: %s", exc)
-            result["gmail_error"] = str(exc)
-        if google_auth.has_scope("calendar"):
-            try:
-                result["calendar"] = gcal.poll()
-            except Exception as exc:
-                log.warning("calendar poll failed: %s", exc)
-                result["calendar_error"] = str(exc)
-        else:
-            result["calendar"] = "scope not granted"
-    else:
-        result["google"] = "not connected"
+    # Mail — the local Apple Mail store, behind the same Full Disk Access
+    # grant iMessage needs. §v3 retired the Gmail API door: it cost every
+    # user a Google Cloud project and a consent screen to reach mail already
+    # sitting on this disk. Absent Mail is a 0, not an error.
+    try:
+        result["mail"] = applemail.poll()
+    except Exception as exc:
+        log.warning("mail poll failed: %s", exc)
+        result["mail_error"] = str(exc)
 
     # Raw-sentence titles get their headline here when the declare-time pass
     # had no provider (`eval-titles-are-raw-sentences`).
@@ -66,9 +58,9 @@ def poll_sources() -> Dict[str, Any]:
     except Exception as exc:
         log.warning("title sweep failed: %s", exc)
 
-    # §v2.8 — the local Calendar store, synced by the OS itself. Needs no
-    # Google connection, works while the Calendar API 403s, and converges on
-    # the same event ids as the API and .ics doors.
+    # §v2.8 — the local Calendar store, synced by the OS itself. Google
+    # calendars land here through the OS, so this reads them without an API,
+    # and it converges on the same event ids as the .ics invite door.
     try:
         result["applecal"] = applecal.poll()
     except Exception as exc:

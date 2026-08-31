@@ -6,7 +6,7 @@ source cannot take down a poll cycle::
     except (OSError, sqlite3.Error):
         return 0                                    # imessage.poll
     except Exception as exc:
-        log.warning("gmail poll failed: %s", exc)   # poller.poll_sources
+        log.warning("mail poll failed: %s", exc)    # poller.poll_sources
 
 That is correct, and it is exactly what makes this system blind. It runs in the
 background, nobody watches it work, and its only visible output is threads on a
@@ -201,33 +201,29 @@ def check_gemini() -> Check:
                      "check the key and its billing at ai.studio/projects")
 
 
-def check_google() -> Check:
-    """Refresh the token, which is the thing that was silently failing.
+def check_mail() -> Check:
+    """Open the local Mail store and read one message.
 
-    `/health` answers this by asking whether a row exists in `oauth_tokens`.
-    That row existed, unchanged, for the thirteen days Gmail was dead.
+    Same three outcomes `check_imessage` distinguishes, for the same reason:
+    `applemail.poll()` returns 0 both when Mail isn't set up and when Full
+    Disk Access is missing, and only trying tells them apart.
     """
-    cfg = get_config()
-    if not cfg.has_google:
-        return Check("google", SKIP, "no GOOGLE_CLIENT_ID / GOOGLE_CLIENT_SECRET",
-                     "add both to ~/.zshrc so launchd and the API both see them")
-    record = db.get_oauth_token("google")
-    if not record:
-        return Check("google", SKIP, "not connected yet",
-                     "visit /auth/google/start to authorise")
-    try:
-        from .ingestion import google_auth
-        google_auth.access_token()
-    except Exception as exc:                      # noqa: BLE001
-        return Check("google", FAIL, f"token refresh failed: {str(exc)[:120]}",
-                     "re-authorise at /auth/google/start — and publish the OAuth "
-                     "client, or testing-mode tokens expire after 7 days")
-    # `get_oauth_token` already decodes this; older rows may still be a string.
-    scopes = record.get("scopes") or []
-    if isinstance(scopes, str):
-        scopes = json.loads(scopes) if scopes.startswith("[") else []
-    have = [s.rsplit("/", 1)[-1] for s in scopes]
-    return Check("google", OK, f"token refreshes — scopes: {', '.join(have) or 'unknown'}")
+    from .ingestion import applemail
+
+    if applemail.permission_denied():
+        return Check("mail", FAIL, "Mail's store exists but this process can't read it",
+                     "grant Full Disk Access to /bin/zsh — the same grant Messages needs")
+    root = applemail.store_root()
+    if root is None:
+        return Check("mail", SKIP, "no mail store on this machine",
+                     "add your account in Mail — the engine reads it from disk, "
+                     "with no cloud project and no consent screen")
+    if not applemail.available():
+        return Check("mail", SKIP, f"{root.name} has no messages yet",
+                     "let Mail finish syncing, then poll again")
+    cursor = db.get_sync_state(applemail.CURSOR_KEY)
+    return Check("mail", OK,
+                 f"readable — {root.name}" + (" (incremental)" if cursor else " (first run pending)"))
 
 
 def check_imessage() -> Check:
@@ -268,7 +264,7 @@ def check_freshness() -> List[Check]:
     was dead for thirteen days while every other Google check would have passed.
     """
     out: List[Check] = []
-    limits = {"imessage": timedelta(days=2), "gmail": timedelta(days=3)}
+    limits = {"imessage": timedelta(days=2), "mail": timedelta(days=3)}
     for source, limit in limits.items():
         row = db.get_connection().execute(
             "SELECT MAX(timestamp) FROM messages WHERE source = ?", (source,)
@@ -422,7 +418,7 @@ CHECKS: List[Callable[[], Any]] = [
     check_database,
     check_anthropic,
     check_gemini,
-    check_google,
+    check_mail,
     check_imessage,
     check_freshness,
     check_attachments,

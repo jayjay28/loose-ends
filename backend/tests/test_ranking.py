@@ -12,7 +12,7 @@ from lifeline.ranking import behavior, learning, scorer, signals
 
 def setup_people():
     make_conversation()
-    make_person("maya", "Maya", "spouse")
+    make_person("tess", "Tess", "spouse")
     make_person("dev", "Dev Shah", "friend")
 
 
@@ -77,7 +77,7 @@ def test_dependency_pressure_decays_with_distance():
 def test_dependency_ignores_generic_word_collisions():
     setup_people()
     db.upsert_calendar_events(
-        [CalendarEvent(id="e1", calendar_id="primary", summary="Maya's birthday", start_at=days_from_now(10))]
+        [CalendarEvent(id="e1", calendar_id="primary", summary="Tess's birthday", start_at=days_from_now(10))]
     )
     item = make_item(text="I'll get the hoop for his birthday")
     item.entities.item = "the hoop for his birthday"
@@ -147,11 +147,11 @@ def test_sender_weight_prefers_learned_value_over_prior():
 def test_reply_latency_measured_from_thread_history():
     setup_people()
     base = NOW - timedelta(days=3)
-    make_message("hey", at=base, person_id="maya")
+    make_message("hey", at=base, person_id="tess")
     make_message("hi", at=base + timedelta(minutes=20), is_from_user=True, person_id=None)
-    make_message("and another", at=base + timedelta(hours=5), person_id="maya")
+    make_message("and another", at=base + timedelta(hours=5), person_id="tess")
     make_message("yep", at=base + timedelta(hours=5, minutes=30), is_from_user=True, person_id=None)
-    latencies = signals.person_reply_latencies("maya")
+    latencies = signals.person_reply_latencies("tess")
     assert len(latencies) == 2
     assert all(l < 1.5 for l in latencies)
 
@@ -273,16 +273,16 @@ def test_deprioritization_decays_weights_but_avoidance_does_not():
         make_item(item_type="reading", person_id="dev", person="Dev Shah", text="another link", at=old)
     ignored = make_item(item_type="reading", person_id="dev", person="Dev Shah", text="one more link", at=old)
 
-    avoided = make_item(item_type="promise", person_id="maya", person="Maya", text="can you call the lawyer to decide")
+    avoided = make_item(item_type="promise", person_id="tess", person="Tess", text="can you call the lawyer to decide")
     for _ in range(4):
         db.log_behavior("viewed", item_id=avoided.id)
 
     db.set_weight("pair:dev/reading", 0.5, observations=5)
-    db.set_weight("pair:maya/promise", 0.5, observations=5)
+    db.set_weight("pair:tess/promise", 0.5, observations=5)
     learning.apply_behavior_patterns(NOW)
 
     assert db.get_weight("pair:dev/reading") < 0.5, "deprioritized items should decay"
-    assert db.get_weight("pair:maya/promise") == 0.5, "avoided items must never be decayed away"
+    assert db.get_weight("pair:tess/promise") == 0.5, "avoided items must never be decayed away"
     assert db.get_item(ignored.id).behavior_pattern == "deprioritized"
 
 

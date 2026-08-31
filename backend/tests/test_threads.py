@@ -25,7 +25,7 @@ from tests.conftest import days_from_now, make_conversation, make_item, make_mes
 
 @pytest.fixture(autouse=True)
 def default_person():
-    """`items.person_id` has a foreign key, and `make_item` defaults to Maya."""
+    """`items.person_id` has a foreign key, and `make_item` defaults to Tess."""
     return make_person()
 
 
@@ -478,10 +478,10 @@ def test_bootstrap_threads_only_open_items():
 
 def test_bootstrap_splits_one_person_by_topic():
     """Five open items from one person are rarely one loop."""
-    make_person("bobby", "Bobby")
-    make_item(person_id="bobby", person="Bobby", text="kids investment account paperwork")
-    make_item(person_id="bobby", person="Bobby", text="the investment account minimum")
-    make_item(person_id="bobby", person="Bobby", text="Beenie Man concert tickets")
+    make_person("robbie", "Robbie")
+    make_item(person_id="robbie", person="Robbie", text="kids investment account paperwork")
+    make_item(person_id="robbie", person="Robbie", text="the investment account minimum")
+    make_item(person_id="robbie", person="Robbie", text="Beenie Man concert tickets")
 
     clusters = bootstrap.cluster_deterministic(db.open_items())
     assert len(clusters) == 2
@@ -500,10 +500,10 @@ def test_bootstrap_carries_the_soonest_upcoming_deadline_with_its_receipt():
     from datetime import datetime, timezone
 
     now = datetime.now(timezone.utc)
-    make_person("bobby", "Bobby")
-    late = make_item(person_id="bobby", person="Bobby", text="renew the passport soon",
+    make_person("robbie", "Robbie")
+    late = make_item(person_id="robbie", person="Robbie", text="renew the passport soon",
                      date=days_from_now(40, base=now))
-    soon = make_item(person_id="bobby", person="Bobby", text="renew the passport now",
+    soon = make_item(person_id="robbie", person="Robbie", text="renew the passport now",
                      date=days_from_now(4, base=now))
     bootstrap.run()
     thread = db.open_threads()[0]
@@ -518,10 +518,10 @@ def test_bootstrap_skips_a_passed_date_in_favour_of_an_upcoming_one():
     from datetime import datetime, timezone
 
     now = datetime.now(timezone.utc)
-    make_person("bobby", "Bobby")
-    make_item(person_id="bobby", person="Bobby", text="skating trip with the kids",
+    make_person("robbie", "Robbie")
+    make_item(person_id="robbie", person="Robbie", text="skating trip with the kids",
               date=days_from_now(-90, base=now))
-    upcoming = make_item(person_id="bobby", person="Bobby", text="skating rink membership renewal",
+    upcoming = make_item(person_id="robbie", person="Robbie", text="skating rink membership renewal",
                          date=days_from_now(10, base=now))
     bootstrap.run()
     thread = db.open_threads()[0]
@@ -534,10 +534,10 @@ def test_bootstrap_falls_back_to_the_most_recent_past_date():
     from datetime import datetime, timezone
 
     now = datetime.now(timezone.utc)
-    make_person("bobby", "Bobby")
-    make_item(person_id="bobby", person="Bobby", text="skating trip with the kids",
+    make_person("robbie", "Robbie")
+    make_item(person_id="robbie", person="Robbie", text="skating trip with the kids",
               date=days_from_now(-90, base=now))
-    recent = make_item(person_id="bobby", person="Bobby", text="skating rink membership lapsed",
+    recent = make_item(person_id="robbie", person="Robbie", text="skating rink membership lapsed",
                        date=days_from_now(-5, base=now))
     bootstrap.run()
     thread = db.open_threads()[0]
@@ -645,7 +645,7 @@ def test_the_reason_chip_says_the_loudest_true_thing():
     resolved = threads.create(title="done thing")
     threads.resolve(resolved.id)
     assert threads.why(db.get_thread(resolved.id), NOW) == {"kind": "tied",
-                                                            "text": "tied off"}
+                                                            "text": "closed"}
 
 
 def test_the_reason_chip_rides_the_stack(client=None):

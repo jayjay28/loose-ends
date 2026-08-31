@@ -66,20 +66,20 @@ def test_stale_ingestion_warns_even_though_the_read_works():
     from conftest import make_conversation
     from lifeline.models import Message, new_id
 
-    make_conversation("gmail:old", source="gmail", name="Someone")
+    make_conversation("mail:old", source="mail", name="Someone")
     old = (datetime.now(timezone.utc) - timedelta(days=13)).isoformat(timespec="seconds")
     # Built directly: `make_message` hardcodes source="imessage", and the
     # source is the whole point of this check.
     db.insert_messages([Message(
-        id=new_id(), source="gmail", conversation_id="gmail:old",
+        id=new_id(), source="mail", conversation_id="mail:old",
         external_id=new_id(), person_id=None, is_from_user=False,
         timestamp=old, text="an old email", metadata={},
     )])
 
     freshness = {c.name: c for c in doctor.check_freshness()}
-    gmail = freshness["gmail freshness"]
-    assert gmail.status == doctor.WARN
-    assert "stalled" in gmail.detail
+    mail = freshness["mail freshness"]
+    assert mail.status == doctor.WARN
+    assert "stalled" in mail.detail
 
 
 def test_a_pass_whose_every_recording_was_refused_is_reported():
@@ -193,10 +193,10 @@ def test_unread_attachments_are_counted_not_invisible():
     """125 attachment-bearing messages, zero ingested, every check green —
     because reading a message's body counted as reading the message."""
     from tests.conftest import make_conversation, make_message
-    make_conversation("gmail:t1", source="gmail", name="school")
-    make_message("see attached", conversation_id="gmail:t1", person_id=None,
+    make_conversation("mail:t1", source="mail", name="school")
+    make_message("see attached", conversation_id="mail:t1", person_id=None,
                  metadata={"attachments": [{"filename": "form.pdf"}]})
-    make_message("no files here", conversation_id="gmail:t1", person_id=None)
+    make_message("no files here", conversation_id="mail:t1", person_id=None)
 
     check = doctor.check_attachments()
     assert check.status == doctor.WARN

@@ -25,7 +25,7 @@ def a_device():
 def _queue_finding_push():
     from lifeline import threads
 
-    thread = threads.create(title="pajama order for Lia")
+    thread = threads.create(title="pajama order for Nora")
     finding = db.save_finding(threads.make_finding(
         thread.id, kind="finding", headline="It shipped Tuesday.", importance=0.9))
     notification_id = db.queue_notification(
@@ -83,7 +83,7 @@ def test_the_phone_fetches_the_words_from_its_own_engine():
     client = TestClient(app)
 
     card = client.get("/push/card", params={"finding_id": finding.id}).json()
-    assert card["title"] == "pajama order for Lia"
+    assert card["title"] == "pajama order for Nora"
     assert card["body"] == "It shipped Tuesday."
     assert card["thread_id"] == thread.id, "the tap knows which door"
 

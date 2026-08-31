@@ -47,7 +47,6 @@ _CODE_LENGTH = 8
 # impossible at that moment, not merely inconvenient.
 OPEN_PATHS = frozenset({
     "/pair/claim",             # the bootstrap — this is how a token is born
-    "/auth/google/callback",   # a browser redirect can't carry our header
 })
 
 _FORWARDING_HEADERS = ("x-forwarded-for", "x-forwarded-host", "forwarded")

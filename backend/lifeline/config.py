@@ -91,13 +91,6 @@ class Config:
     gemini_api_key: str = field(default_factory=lambda: os.environ.get("GEMINI_API_KEY", ""))
     gemini_model: str = field(default_factory=lambda: os.environ.get("LIFELINE_GEMINI_MODEL", "gemini-flash-latest"))
 
-    # --- Google OAuth (§3, §9) --------------------------------------------
-    google_client_id: str = field(default_factory=lambda: os.environ.get("GOOGLE_CLIENT_ID", ""))
-    google_client_secret: str = field(default_factory=lambda: os.environ.get("GOOGLE_CLIENT_SECRET", ""))
-    google_redirect_uri: str = field(
-        default_factory=lambda: os.environ.get("GOOGLE_REDIRECT_URI", "http://localhost:8000/auth/google/callback")
-    )
-
     # --- APNs (§8.4) -------------------------------------------------------
     # §v3 — engines without their own APNs key knock through the relay.
     # Empty disables; the developer's machine has the key and never knocks.
@@ -133,18 +126,9 @@ class Config:
         return bool(self.gemini_api_key) and not self.offline_extraction
 
     @property
-    def has_google(self) -> bool:
-        return bool(self.google_client_id and self.google_client_secret)
-
-    @property
     def has_apns(self) -> bool:
         return bool(self.apns_key_path and self.apns_key_id and self.apns_team_id)
 
-
-GOOGLE_SCOPES = [
-    "https://www.googleapis.com/auth/gmail.readonly",
-    "https://www.googleapis.com/auth/calendar.readonly",
-]
 
 _config: Config | None = None
 

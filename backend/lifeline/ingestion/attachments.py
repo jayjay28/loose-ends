@@ -105,57 +105,46 @@ def import_stored_ics() -> int:
         "SELECT filename, mime, text FROM attachments "
         "WHERE text IS NOT NULL AND (mime LIKE 'text/calendar%' OR filename LIKE '%.ics')"
     ).fetchall()
-    from . import gcal
+    from . import invites
 
     written = 0
     for row in rows:
-        written += gcal.import_ics(row["text"])
+        written += invites.import_ics(row["text"])
     log.info("ics sweep: %d attachments -> %d calendar events", len(rows), written)
     return written
 
 
-# ------------------------------------------------------------------- gmail
+# -------------------------------------------------------------------- mail
 
-def _fetch_gmail(client, message_external_id: str, attachment_id: str) -> Optional[bytes]:
-    """One attachment's bytes, or None on any failure (logged, never raised)."""
-    try:
-        response = client.get(
-            f"https://gmail.googleapis.com/gmail/v1/users/me/messages/"
-            f"{message_external_id}/attachments/{attachment_id}"
-        )
-        response.raise_for_status()
-        data = response.json().get("data", "")
-        padding = "=" * (-len(data) % 4)
-        return base64.urlsafe_b64decode(data + padding)
-    except Exception as exc:
-        log.warning("attachment fetch failed for %s/%s: %s",
-                    message_external_id, attachment_id, exc)
-        return None
+def ingest_email(message, email_message) -> int:
+    """Parse and store every file a mail message carries. Returns rows
+    inserted; idempotent, since ``(message_id, sha256)`` dedupes.
 
-
-def ingest_gmail_message(client, message, metadata_attachments) -> int:
-    """Fetch, parse and store every attachment one stored message names.
-    Returns rows inserted. Idempotent — (message_id, sha256) dedupes."""
+    §v3: the bytes arrive already in hand. The Gmail door had to fetch each
+    attachment over the API — a client, a remote id, and a transient failure
+    mode per file — but a ``.emlx`` on disk *is* the whole message, parts
+    included, so there is nothing to fetch and nothing to retry.
+    """
     inserted = 0
-    for meta in metadata_attachments or []:
-        filename = meta.get("filename") or ""
-        mime = meta.get("mime") or ""
-        size = int(meta.get("size") or 0)
-        remote_id = meta.get("attachment_id")
-
-        if size > MAX_FETCH_BYTES:
-            record = Attachment(
-                message_id=message.id, source="gmail", remote_id=remote_id,
-                filename=filename, mime=mime, size_bytes=size,
-                sha256=f"unfetched:{remote_id or filename}",
-                parsed_at=now_iso(), error=f"skipped: {size} bytes",
-            )
-            inserted += db.insert_attachment(record)
+    for part in email_message.walk() if email_message.is_multipart() else []:
+        filename = part.get_filename()
+        if not filename:
             continue
-
-        data = _fetch_gmail(client, message.external_id, remote_id) if remote_id else None
+        mime = part.get_content_type()
+        try:
+            data = part.get_payload(decode=True)
+        except Exception:
+            data = None
         if data is None:
-            continue        # transient — leave no row, the next run retries
+            continue
+        if len(data) > MAX_FETCH_BYTES:
+            inserted += db.insert_attachment(Attachment(
+                message_id=message.id, source="mail", filename=filename,
+                mime=mime, size_bytes=len(data),
+                sha256=f"unfetched:{filename}", parsed_at=now_iso(),
+                error=f"skipped: {len(data)} bytes",
+            ))
+            continue
 
         sha = hashlib.sha256(data).hexdigest()
         known = db.attachment_text_by_sha(sha)
@@ -169,100 +158,17 @@ def ingest_gmail_message(client, message, metadata_attachments) -> int:
         # must not cost the attachment row below.
         if text and _is_ics(mime, filename):
             try:
-                from . import gcal
-                gcal.import_ics(text)
+                from . import invites
+                invites.import_ics(text)
             except Exception:
                 log.exception("ics import failed for %s", filename)
 
         inserted += db.insert_attachment(Attachment(
-            message_id=message.id, source="gmail", remote_id=remote_id,
-            filename=filename, mime=mime, size_bytes=size or len(data),
-            sha256=sha, text=text, parsed_at=now_iso(), error=error,
+            message_id=message.id, source="mail", filename=filename,
+            mime=mime, size_bytes=len(data), sha256=sha, text=text,
+            parsed_at=now_iso(), error=error,
         ))
     return inserted
-
-
-def ingest_new(client, records) -> int:
-    """The poll path: after `store()`, read what the new mail carried."""
-    count = 0
-    for rec in records:
-        if not rec.get("attachments"):
-            continue
-        message = db.get_message_by_external_id("gmail", rec["id"])
-        if message is None:
-            continue
-        try:
-            count += ingest_gmail_message(client, message, rec["attachments"])
-        except Exception:
-            log.exception("attachment ingest failed for %s", rec["id"])
-    return count
-
-
-def backfill(days: int = 90, limit: Optional[int] = None) -> Dict[str, int]:
-    """Read everything the last `days` of mail carried.
-
-    Works from Gmail's own carrier list (`has:attachment`), not from the
-    store — the store only ever saw 29 of 123 carriers. A carrier that was
-    filtered out at ingest gets its message stored if it holds anything
-    document-shaped; only mail whose sole cargo is images stays out.
-
-    A deliberate one-time job with a ceiling (`limit`), never something the
-    poller drifts into.
-    """
-    from . import gmail
-    from .google_auth import authed_client
-
-    after = (datetime.now(timezone.utc) - timedelta(days=days)).strftime("%Y/%m/%d")
-    stats = {"carriers": 0, "attachments": 0, "messages_added": 0, "skipped": 0}
-
-    with authed_client() as client:
-        ids = gmail._list_query(client, f"after:{after} has:attachment")
-        if limit:
-            ids = ids[:limit]
-        for message_id in ids:
-            try:
-                raw = gmail._get_message(client, message_id)
-                if not raw:
-                    continue
-                rec = gmail.normalise(raw)
-                if not rec.get("attachments"):
-                    continue
-                stats["carriers"] += 1
-
-                message = db.get_message_by_external_id("gmail", message_id)
-                if message is None:
-                    # Filtered at ingest. A carrier earns a message row when it
-                    # holds a *document* — parsed or not. The birth certificates
-                    # are 7 MB scans with no text layer; skipping them silently
-                    # left no trace anywhere, which is the exact invisibility
-                    # 0.1 exists to end. What stays out is mail whose only
-                    # cargo is images: the promo-with-inline-logo case.
-                    if not _carries_document(rec):
-                        stats["skipped"] += 1
-                        continue
-                    gmail.store([rec])
-                    message = db.get_message_by_external_id("gmail", message_id)
-                    if message is None:
-                        continue
-                    stats["messages_added"] += 1
-
-                stats["attachments"] += ingest_gmail_message(
-                    client, message, rec["attachments"]
-                )
-            except Exception:
-                log.exception("attachment backfill failed for %s", message_id)
-
-    log.info("attachment backfill: %s", stats)
-    return stats
-
-
-# Cargo that reads as a document someone kept on purpose, whether or not any
-# text comes out of it today. A scan that defeats the parser is the OCR
-# backlog, not noise — it must leave a row saying so.
-_DOCUMENT_MIMES = ("application/pdf", "text/calendar", "text/csv", "text/plain",
-                   "application/msword", "application/vnd.openxmlformats")
-_DOCUMENT_SUFFIXES = (".pdf", ".ics", ".csv", ".txt", ".vcf",
-                      ".doc", ".docx", ".xls", ".xlsx")
 
 
 def _carries_document(rec) -> bool:

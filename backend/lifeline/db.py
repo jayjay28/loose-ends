@@ -174,6 +174,33 @@ def _people_become_entities(conn: sqlite3.Connection) -> None:
                 )
 
 
+def _mail_source_rename(conn: sqlite3.Connection) -> None:
+    """Rename the mail source in place, conversations and all.
+
+    `conversations.id` is a foreign key target for `messages.conversation_id`,
+    so renaming either one alone violates the constraint mid-flight even
+    though the pair is consistent by the end. `defer_foreign_keys` holds the
+    check until commit, which is exactly the shape this needs; the pragma is
+    transaction-scoped and expires on its own.
+    """
+    conn.execute("PRAGMA defer_foreign_keys = ON")
+    statements = [
+        "UPDATE conversations SET id = 'mail:' || substr(id, 7) WHERE id LIKE 'gmail:%'",
+        "UPDATE conversations SET source = 'mail' WHERE source = 'gmail'",
+        "UPDATE messages SET conversation_id = 'mail:' || substr(conversation_id, 7) "
+        "WHERE conversation_id LIKE 'gmail:%'",
+        "UPDATE messages SET source = 'mail' WHERE source = 'gmail'",
+        "UPDATE attachments SET source = 'mail' WHERE source = 'gmail'",
+        "UPDATE sync_state SET key = 'applemail:account' WHERE key = 'gmail:account'",
+    ]
+    for sql in statements:
+        try:
+            conn.execute(sql)
+        except sqlite3.OperationalError:
+            # A table this old database never grew. Nothing to rename in it.
+            continue
+
+
 MIGRATIONS: List[List[Any]] = [
     # v1 (§v1.4): the surfacing axis — items are actions or information.
     [
@@ -440,6 +467,13 @@ MIGRATIONS: List[List[Any]] = [
             created_at TEXT NOT NULL)""",
         "CREATE INDEX IF NOT EXISTS idx_asks_created ON asks(created_at)",
     ],
+    # §v3 — the Gmail API door was removed in favour of the local Mail store,
+    # so the source is "mail" now: one name for mail however it was read.
+    # Rows and conversations keep their identity rather than being orphaned
+    # beside new ones covering the same messages.
+    [_mail_source_rename],
+    # §v3 — nothing authenticates to anyone any more.
+    ["DROP TABLE IF EXISTS oauth_tokens"],
 ]
 
 
@@ -1525,42 +1559,6 @@ def set_sync_state(key: str, value: str, conn: Optional[sqlite3.Connection] = No
     c = conn or get_connection()
     _upsert(c, "sync_state", {"key": key, "value": value, "updated_at": now_iso()}, key="key")
     c.commit()
-
-
-# ---------------------------------------------------------------- oauth
-def save_oauth_token(
-    provider: str,
-    access_token: Optional[str],
-    refresh_token: Optional[str],
-    token_expiry: Optional[str],
-    scopes: List[str],
-    conn: Optional[sqlite3.Connection] = None,
-) -> None:
-    c = conn or get_connection()
-    _upsert(
-        c,
-        "oauth_tokens",
-        {
-            "provider": provider,
-            "access_token": access_token,
-            "refresh_token": refresh_token,
-            "token_expiry": token_expiry,
-            "scopes": json.dumps(scopes),
-            "updated_at": now_iso(),
-        },
-        key="provider",
-    )
-    c.commit()
-
-
-def get_oauth_token(provider: str, conn: Optional[sqlite3.Connection] = None) -> Optional[Dict[str, Any]]:
-    c = conn or get_connection()
-    row = c.execute("SELECT * FROM oauth_tokens WHERE provider = ?", (provider,)).fetchone()
-    if not row:
-        return None
-    d = dict(row)
-    d["scopes"] = json.loads(d["scopes"])
-    return d
 
 
 # -------------------------------------------------------- notifications

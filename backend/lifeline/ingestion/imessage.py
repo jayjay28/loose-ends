@@ -292,8 +292,8 @@ def _ingest_attachments(messages: List[Message], attachments_by_guid: Dict[str, 
 
             if text and attachments_mod._is_ics(mime, filename):
                 try:
-                    from . import gcal
-                    gcal.import_ics(text)
+                    from . import invites
+                    invites.import_ics(text)
                 except Exception:
                     log.exception("ics import failed for %s", filename)
 

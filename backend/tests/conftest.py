@@ -35,15 +35,15 @@ def sample_dir() -> Path:
     return SAMPLE_DIR
 
 
-def make_person(person_id="maya", name="Maya", relationship="spouse", handles=None) -> Person:
+def make_person(person_id="tess", name="Tess", relationship="spouse", handles=None) -> Person:
     return db.upsert_person(Person(id=person_id, display_name=name, relationship=relationship, handles=handles or []))
 
 
-def make_conversation(conversation_id="imessage:t1", source="imessage", name="Maya") -> Conversation:
+def make_conversation(conversation_id="imessage:t1", source="imessage", name="Tess") -> Conversation:
     return db.upsert_conversation(Conversation(id=conversation_id, source=source, display_name=name))
 
 
-def make_message(text, conversation_id="imessage:t1", person_id="maya", is_from_user=False, at=None, metadata=None, external_id=None, source=None) -> Message:
+def make_message(text, conversation_id="imessage:t1", person_id="tess", is_from_user=False, at=None, metadata=None, external_id=None, source=None) -> Message:
     message = Message(
         id=new_id(),
         source=source or conversation_id.split(":", 1)[0],
@@ -61,8 +61,8 @@ def make_message(text, conversation_id="imessage:t1", person_id="maya", is_from_
 
 def make_item(
     item_type="promise",
-    person_id="maya",
-    person="Maya",
+    person_id="tess",
+    person="Tess",
     text="can you call the vet",
     date=None,
     status="pending",

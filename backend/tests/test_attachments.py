@@ -14,13 +14,13 @@ import hashlib
 import io
 
 from lifeline import db
-from lifeline.ingestion import attachments, gmail
+from lifeline.ingestion import attachments, mail
 from lifeline.models import Attachment
 
 from tests.conftest import make_conversation, make_message
 
 
-def _pdf_bytes(text: str = "Asthma Action Plan for Lia Carter") -> bytes:
+def _pdf_bytes(text: str = "Asthma Action Plan for Nora Carter") -> bytes:
     """A real one-page PDF, built with the same library that parses it."""
     from pypdf import PdfWriter
 
@@ -55,7 +55,7 @@ def _pdf_bytes(text: str = "Asthma Action Plan for Lia Carter") -> bytes:
 def test_pdf_text_comes_out():
     text, error = attachments.parse("application/pdf", "plan.pdf", _pdf_bytes())
     assert error is None
-    assert "Asthma Action Plan for Lia Carter" in text
+    assert "Asthma Action Plan for Nora Carter" in text
 
 
 def test_a_broken_pdf_becomes_an_error_not_an_exception():
@@ -96,225 +96,83 @@ def test_text_files_decode_and_long_ones_are_capped():
 
 # ------------------------------------------------------- fetch and storage
 
-class FakeClient:
-    """Just enough of httpx.Client for the attachment endpoints."""
+def _email_carrying(files, body="see attached"):
+    """A real multipart message — the shape `.emlx` holds and the shape
+    `ingest_email` walks. §v3 has no fetching left to fake: the bytes are in
+    the message."""
+    from email.message import EmailMessage as PyEmailMessage
 
-    def __init__(self, files: dict):
-        self.files = files          # attachment_id -> bytes
-        self.fetches = 0
-
-    def get(self, url, **kwargs):
-        self.fetches += 1
-        att_id = url.rsplit("/", 1)[-1]
-
-        class R:
-            status_code = 200
-            def raise_for_status(self):
-                pass
-            def json(inner):
-                data = self.files.get(att_id)
-                if data is None:
-                    raise KeyError(att_id)
-                return {"data": base64.urlsafe_b64encode(data).decode()}
-        return R()
+    msg = PyEmailMessage()
+    msg["From"] = "school@example.com"
+    msg["Subject"] = "the packet"
+    msg.set_content(body)
+    for filename, (mime, data) in files.items():
+        maintype, _, subtype = mime.partition("/")
+        msg.add_attachment(data, maintype=maintype, subtype=subtype,
+                           filename=filename)
+    return msg
 
 
-def _stored_gmail_message(external_id="g-1"):
-    make_conversation("gmail:t1", source="gmail", name="school")
+def _stored_mail_message(external_id="m-1"):
+    make_conversation("mail:t1", source="mail", name="school")
     return make_message(
-        "see attached", conversation_id="gmail:t1", person_id=None,
+        "see attached", conversation_id="mail:t1", person_id=None,
         metadata={"attachments": [
-            {"filename": "plan.pdf", "mime": "application/pdf", "size": 100, "attachment_id": "att-1"},
+            {"filename": "plan.pdf", "mime": "application/pdf", "size": 100},
         ]},
-        external_id=external_id, source="gmail",
+        external_id=external_id, source="mail",
     )
 
 
 def test_ingest_stores_the_text_and_is_idempotent():
-    message = _stored_gmail_message()
-    client = FakeClient({"att-1": _pdf_bytes()})
-    meta = message.metadata["attachments"]
+    message = _stored_mail_message()
+    carrier = _email_carrying({"plan.pdf": ("application/pdf", _pdf_bytes())})
 
-    assert attachments.ingest_gmail_message(client, message, meta) == 1
+    assert attachments.ingest_email(message, carrier) == 1
     rows = db.attachments_for_message(message.id)
     assert len(rows) == 1
     assert "Asthma Action Plan" in rows[0].text
     assert rows[0].parsed_at and rows[0].error is None
 
     # Run it again: same file, same message, no second row.
-    assert attachments.ingest_gmail_message(client, message, meta) == 0
+    assert attachments.ingest_email(message, carrier) == 0
     assert len(db.attachments_for_message(message.id)) == 1
 
 
-def test_the_same_content_is_parsed_once():
+def test_the_same_content_is_parsed_once(monkeypatch):
     """The preschool packet arrives three times; the work happens once."""
     data = _pdf_bytes("June PTA Calendar")
     sha = hashlib.sha256(data).hexdigest()
+    carrier = _email_carrying({"plan.pdf": ("application/pdf", data)})
 
-    first = _stored_gmail_message("g-first")
-    attachments.ingest_gmail_message(FakeClient({"att-1": data}), first,
-                                     first.metadata["attachments"])
+    first = _stored_mail_message("m-first")
+    attachments.ingest_email(first, carrier)
     assert db.attachment_text_by_sha(sha) is not None
 
-    # Second copy on another message: fetched, but the text is reused.
-    second = _stored_gmail_message("g-second")
-    import lifeline.ingestion.attachments as mod
-    calls = []
-    original = mod.parse
-    mod.parse = lambda *a: calls.append(a) or original(*a)
-    try:
-        attachments.ingest_gmail_message(FakeClient({"att-1": data}), second,
-                                         second.metadata["attachments"])
-    finally:
-        mod.parse = original
-    assert calls == [], "the sha match should skip the parser entirely"
-    assert "June PTA Calendar" in db.attachments_for_message(second.id)[0].text
+    # A second message carrying the same bytes reuses the text rather than
+    # parsing a PDF twice.
+    parses = []
+    real_parse = attachments.parse
+    monkeypatch.setattr(attachments, "parse",
+                        lambda *a: parses.append(a) or real_parse(*a))
+    second = _stored_mail_message("m-second")
+    attachments.ingest_email(second, carrier)
+
+    assert parses == [], "the sha was already known; nothing was re-parsed"
+    assert db.attachments_for_message(second.id)[0].text == \
+        db.attachments_for_message(first.id)[0].text
 
 
-def test_an_oversize_file_is_recorded_and_never_fetched():
-    message = _stored_gmail_message()
-    meta = [{"filename": "huge.pdf", "mime": "application/pdf",
-             "size": attachments.MAX_FETCH_BYTES + 1, "attachment_id": "att-big"}]
-    client = FakeClient({})
-    attachments.ingest_gmail_message(client, message, meta)
+def test_an_oversize_file_is_recorded_never_parsed(monkeypatch):
+    """A 30MB video is noted and skipped: knowing it exists is the point."""
+    monkeypatch.setattr(attachments, "MAX_FETCH_BYTES", 32)
+    message = _stored_mail_message()
+    carrier = _email_carrying({"big.pdf": ("application/pdf", b"x" * 500)})
 
-    assert client.fetches == 0
-    row = db.attachments_for_message(message.id)[0]
-    assert row.error.startswith("skipped")
-    assert row.parsed_at, "done, not waiting for a retry"
-
-
-def test_a_transient_fetch_failure_leaves_no_row():
-    """No row means the next run tries again — unlike a parse failure, which
-    is permanent and recorded."""
-    message = _stored_gmail_message()
-    attachments.ingest_gmail_message(FakeClient({}), message,
-                                     message.metadata["attachments"])
-    assert db.attachments_for_message(message.id) == []
-
-
-# ------------------------------------------------------------- the backfill
-
-def test_backfill_rescues_a_filtered_out_document(monkeypatch):
-    """The birth-certificate case: the carrier never made it past the ingest
-    filters, but its document parses, so the message is stored after all."""
-    pdf = _pdf_bytes("Certificate of Birth")
-    raw = {
-        "id": "g-filtered", "threadId": "t-filtered", "internalDate": "1756300000000",
-        "labelIds": [],
-        "payload": {
-            "headers": [
-                {"name": "From", "value": "Alex Carter <alex.carter@gmail.com>"},
-                {"name": "Subject", "value": ""},
-                {"name": "Date", "value": "Wed, 1 Jul 2026 09:00:00 -0400"},
-            ],
-            "mimeType": "multipart/mixed",
-            "parts": [
-                {"mimeType": "text/plain", "body": {"data": base64.urlsafe_b64encode(b"docs").decode()}},
-                {"mimeType": "application/pdf", "filename": "Birth cert.pdf",
-                 "body": {"attachmentId": "att-cert", "size": len(pdf)}},
-            ],
-        },
-    }
-    client = FakeClient({"att-cert": pdf})
-    monkeypatch.setattr(gmail, "_list_query", lambda c, q: ["g-filtered"])
-    monkeypatch.setattr(gmail, "_get_message", lambda c, mid: raw)
-    import lifeline.ingestion.google_auth as ga
-
-    class _Ctx:
-        def __enter__(self):
-            return client
-        def __exit__(self, *a):
-            return False
-    monkeypatch.setattr(ga, "authed_client", lambda: _Ctx())
-
-    stats = attachments.backfill(days=90)
-    assert stats["messages_added"] == 1
-    message = db.get_message_by_external_id("gmail", "g-filtered")
-    assert message is not None, "the filtered carrier was ingested"
-    assert "Certificate of Birth" in db.attachments_for_message(message.id)[0].text
-
-
-def test_backfill_records_a_scan_it_cannot_read(monkeypatch):
-    """The actual birth-certificate case, as found live: a 7 MB scan with no
-    text layer. The first version of this code skipped it silently — no
-    message row, no attachment row, no trace — which is the exact invisibility
-    0.1 exists to end. A document that defeats the parser is the OCR backlog,
-    and the backlog must be countable."""
-    from pypdf import PdfWriter
-
-    writer = PdfWriter()
-    writer.add_blank_page(width=612, height=792)     # a page with no text layer
-    buf = io.BytesIO()
-    writer.write(buf)
-    scan = buf.getvalue()
-
-    raw = {
-        "id": "g-scan", "threadId": "t-scan", "internalDate": "1756300000000",
-        "labelIds": [],
-        "payload": {
-            "headers": [
-                {"name": "From", "value": "Alex Carter <alex.carter@gmail.com>"},
-                {"name": "Subject", "value": ""},
-            ],
-            "mimeType": "multipart/mixed",
-            "parts": [
-                {"mimeType": "application/pdf", "filename": "Birth cert.pdf",
-                 "body": {"attachmentId": "att-scan", "size": len(scan)}},
-            ],
-        },
-    }
-    client = FakeClient({"att-scan": scan})
-    monkeypatch.setattr(gmail, "_list_query", lambda c, q: ["g-scan"])
-    monkeypatch.setattr(gmail, "_get_message", lambda c, mid: raw)
-    import lifeline.ingestion.google_auth as ga
-
-    class _Ctx:
-        def __enter__(self):
-            return client
-        def __exit__(self, *a):
-            return False
-    monkeypatch.setattr(ga, "authed_client", lambda: _Ctx())
-
-    stats = attachments.backfill(days=90)
-    assert stats["messages_added"] == 1
-    message = db.get_message_by_external_id("gmail", "g-scan")
+    assert attachments.ingest_email(message, carrier) == 1
     row = db.attachments_for_message(message.id)[0]
     assert row.text is None
-    assert "scanned" in row.error
-    assert row.parsed_at, "done — the OCR backlog, not a retry loop"
-
-
-def test_backfill_leaves_pure_image_mail_out(monkeypatch):
-    """The promo-with-inline-logo case: nothing parses, no message row."""
-    raw = {
-        "id": "g-promo", "threadId": "t-promo", "internalDate": "1756300000000",
-        "labelIds": ["CATEGORY_PROMOTIONS"],
-        "payload": {
-            "headers": [{"name": "From", "value": "deals@shop.com"},
-                        {"name": "Subject", "value": "SALE"}],
-            "mimeType": "multipart/mixed",
-            "parts": [
-                {"mimeType": "image/png", "filename": "banner.png",
-                 "body": {"attachmentId": "att-img", "size": 5000}},
-            ],
-        },
-    }
-    client = FakeClient({"att-img": b"\x89PNG fake"})
-    monkeypatch.setattr(gmail, "_list_query", lambda c, q: ["g-promo"])
-    monkeypatch.setattr(gmail, "_get_message", lambda c, mid: raw)
-    import lifeline.ingestion.google_auth as ga
-
-    class _Ctx:
-        def __enter__(self):
-            return client
-        def __exit__(self, *a):
-            return False
-    monkeypatch.setattr(ga, "authed_client", lambda: _Ctx())
-
-    stats = attachments.backfill(days=90)
-    assert stats["skipped"] == 1
-    assert db.get_message_by_external_id("gmail", "g-promo") is None
+    assert "skipped" in row.error and row.sha256.startswith("unfetched:")
 
 
 # ------------------------------------------------------------ the ics door
@@ -339,10 +197,10 @@ END:VCALENDAR
 
 
 def test_an_invite_becomes_a_calendar_event():
-    from lifeline.ingestion import gcal
+    from lifeline.ingestion import invites
 
-    db.set_sync_state("gmail:account", "alex.carter@gmail.com")
-    assert gcal.import_ics(_ICS) == 1
+    db.set_sync_state("applemail:account", "alex.carter@gmail.com")
+    assert invites.import_ics(_ICS) == 1
 
     event = {e.id: e for e in db.list_calendar_events()}["9xk2plfo431bce7dgsjeqavuwq"]
     assert event.summary == "Fall REC soccer - first practice"
@@ -356,40 +214,39 @@ def test_an_invite_becomes_a_calendar_event():
 
 
 def test_a_revised_invite_updates_in_place_and_a_cancel_cancels():
-    from lifeline.ingestion import gcal
+    from lifeline.ingestion import invites
 
-    gcal.import_ics(_ICS)
+    invites.import_ics(_ICS)
     revised = _ICS.replace("20260912T150000", "20260913T150000")
-    gcal.import_ics(revised)
+    invites.import_ics(revised)
 
     events = [e for e in db.list_calendar_events() if e.id == "9xk2plfo431bce7dgsjeqavuwq"]
     assert len(events) == 1, "same UID must not duplicate"
     assert events[0].start_at == "2026-09-13T19:00:00+00:00"
 
     cancel = revised.replace("METHOD:REQUEST", "METHOD:CANCEL")
-    gcal.import_ics(cancel)
+    invites.import_ics(cancel)
     assert [e for e in db.list_calendar_events() if e.id == "9xk2plfo431bce7dgsjeqavuwq"][0].status == "cancelled"
 
 
 def test_garbage_ics_is_a_zero_not_an_exception():
-    from lifeline.ingestion import gcal
+    from lifeline.ingestion import invites
 
-    assert gcal.import_ics("BEGIN:VCALENDAR\nnot really") == 0
+    assert invites.import_ics("BEGIN:VCALENDAR\nnot really") == 0
 
 
 def test_an_ics_attachment_reaches_the_calendar_through_ingest():
     """The wire-in: parsing an invite attachment also writes the event."""
-    make_conversation("gmail:t1", source="gmail", name="soccer")
+    make_conversation("mail:t1", source="mail", name="soccer")
     message = make_message(
-        "practice invite", conversation_id="gmail:t1", person_id=None,
+        "practice invite", conversation_id="mail:t1", person_id=None,
         metadata={"attachments": [
-            {"filename": "invite.ics", "mime": "text/calendar", "size": len(_ICS),
-             "attachment_id": "att-ics"},
+            {"filename": "invite.ics", "mime": "text/calendar", "size": len(_ICS)},
         ]},
-        external_id="g-ics-1", source="gmail",
+        external_id="m-ics-1", source="mail",
     )
-    client = FakeClient({"att-ics": _ICS.encode()})
-    attachments.ingest_gmail_message(client, message, message.metadata["attachments"])
+    carrier = _email_carrying({"invite.ics": ("text/calendar", _ICS.encode())})
+    attachments.ingest_email(message, carrier)
 
     assert "VCALENDAR" in db.attachments_for_message(message.id)[0].text
     assert any(e.id == "9xk2plfo431bce7dgsjeqavuwq" for e in db.list_calendar_events())
@@ -611,9 +468,9 @@ def _apple_secs(days_ahead):
 def test_apple_calendar_converges_on_the_ics_door(tmp_path):
     """The same Google event through the API, an invite, and the local store
     must be one row — the UID's @google.com suffix is the shared key."""
-    from lifeline.ingestion import applecal, gcal
+    from lifeline.ingestion import applecal, invites
 
-    gcal.import_ics(_ICS)          # writes id 9xk2plfo431bce7dgsjeqavuwq
+    invites.import_ics(_ICS)          # writes id 9xk2plfo431bce7dgsjeqavuwq
     src = _apple_store(tmp_path, [
         (1, "Fall REC soccer - first practice", _apple_secs(3), _apple_secs(3) + 3600,
          0, 0, "9xk2plfo431bce7dgsjeqavuwq@google.com", "UUID-1", "", 1, 1, 0),
@@ -644,7 +501,7 @@ def test_apple_calendar_skips_hidden_cancelled_and_out_of_window(tmp_path):
 def test_apple_calendar_sameness_guard_without_an_external_id(tmp_path):
     """A local row with no recognisable external id must not duplicate an
     event another door already wrote."""
-    from lifeline.ingestion import applecal, gcal
+    from lifeline.ingestion import applecal, invites
     from lifeline.models import CalendarEvent
 
     when = _apple_secs(2)

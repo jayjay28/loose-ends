@@ -257,7 +257,7 @@ def classify_batch(batch: List[Dict[str, Any]], draft_replies: bool = True) -> D
         metadata = entry.get("metadata") or {}
         if _ACK_ONLY.match(text) or len(_clean(text)) < 8:
             continue
-        if entry.get("source") == "gmail" and _is_automated(metadata):
+        if entry.get("source") == "mail" and _is_automated(metadata):
             continue
 
         item_type, trigger = _classify(text)
@@ -279,7 +279,7 @@ def classify_batch(batch: List[Dict[str, Any]], draft_replies: bool = True) -> D
         # For email, the subject line is a cleaner "what" than a phrase scraped
         # from the body — which often grabs a CTA ("modify your RSVP") or a
         # signature. Prefer it, stripped of Re:/Fwd:/Invitation: noise.
-        if entry.get("source") == "gmail":
+        if entry.get("source") == "mail":
             subject = _clean_subject(metadata.get("subject") or "")
             if subject:
                 entity_item = subject

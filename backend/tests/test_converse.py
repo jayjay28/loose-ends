@@ -74,7 +74,7 @@ def test_offline_statement_kept_verbatim(monkeypatch):
 
 def test_offline_question_gets_tool_report(monkeypatch):
     monkeypatch.setattr(providers, "available", lambda: [])
-    body = client.post("/converse", json={"text": "what do I owe Maya?"}).json()
+    body = client.post("/converse", json={"text": "what do I owe Tess?"}).json()
     assert body["reply"]                      # heuristic fallback answers
     assert body["facts"] == []                # a question records nothing
 
@@ -84,12 +84,12 @@ def test_empty_400():
 
 
 def test_offline_mixed_input_keeps_the_statement(monkeypatch):
-    """QA round 2, defect 2: 'I moved my gym to mornings. What do I owe Maya?'
+    """QA round 2, defect 2: 'I moved my gym to mornings. What do I owe Tess?'
     must not drop the statement half on the fallback path."""
     monkeypatch.setattr(providers, "available", lambda: [])
     body = client.post(
         "/converse",
-        json={"text": "I moved my gym sessions to mornings. Also what do I owe Maya?"},
+        json={"text": "I moved my gym sessions to mornings. Also what do I owe Tess?"},
     ).json()
     assert [f["statement"] for f in body["facts"]] == ["I moved my gym sessions to mornings."]
     assert body["reply"].startswith("Noted.")          # both halves acknowledged
@@ -107,7 +107,7 @@ def test_failed_provider_surfaces_in_health(monkeypatch):
     dead = types.SimpleNamespace(__name__="claude", complete_with_tools=boom)
     monkeypatch.setattr(providers, "available", lambda: [dead])
 
-    body = client.post("/converse", json={"text": "what do I owe Maya?"}).json()
+    body = client.post("/converse", json={"text": "what do I owe Tess?"}).json()
     assert body["reply"]                               # fallback still answers
     health = client.get("/health").json()
     assert "credit balance" in (health["llm_last_error"] or "")
@@ -120,7 +120,7 @@ def test_failed_provider_surfaces_in_health(monkeypatch):
         },
     )
     monkeypatch.setattr(providers, "available", lambda: [ok])
-    client.post("/converse", json={"text": "what do I owe Maya?"})
+    client.post("/converse", json={"text": "what do I owe Tess?"})
     assert client.get("/health").json()["llm_last_error"] is None
 
 

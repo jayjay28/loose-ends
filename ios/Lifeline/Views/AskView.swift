@@ -90,7 +90,7 @@ struct AskView: View {
         VStack(alignment: .leading, spacing: 6) {
             Text("Ask about the life in your messages.")
                 .font(.system(size: 13)).foregroundStyle(Theme.inkSoft)
-            Text("“Where is Lia's daycare?” · “What's wrong with the water account?”")
+            Text("“Where is Nora's daycare?” · “What's wrong with the water account?”")
                 .font(.system(size: 12)).foregroundStyle(Theme.inkFaint)
         }
         .padding(.top, 8)

@@ -56,7 +56,7 @@ def _roles(call) -> list:
 def test_classify_batch_sends_no_assistant_prefill(fake_client):
     messages = fake_client('{"items": [{"type": "promise"}]}')
     result = claude.classify_batch(
-        [{"id": "m1", "person": "Maya", "timestamp": "2026-08-01T00:00:00Z",
+        [{"id": "m1", "person": "Tess", "timestamp": "2026-08-01T00:00:00Z",
           "source": "imessage", "text": "call the vet"}]
     )
     assert result == {"items": [{"type": "promise"}], "entities": []}

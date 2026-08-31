@@ -139,7 +139,7 @@ def test_ask_rides_the_loop(monkeypatch):
 
 def test_ask_falls_back_without_loop(monkeypatch):
     monkeypatch.setattr(providers, "available", lambda: [])
-    resp = client.post("/ask", json={"question": "what do I owe Maya?"})
+    resp = client.post("/ask", json={"question": "what do I owe Tess?"})
     assert resp.status_code == 200
     assert resp.json()["answer"]  # heuristic fallback still answers
 
@@ -184,8 +184,8 @@ def test_a_narrated_search_is_sent_back_even_after_tool_calls(monkeypatch):
         monkeypatch,
         fake_provider(
             [
-                {"text": "", "tool_calls": [{"id": "t1", "name": "echo", "input": {"q": "Lia"}}]},
-                {"text": "Lia is enrolled in LPS preschool, but the address is "
+                {"text": "", "tool_calls": [{"id": "t1", "name": "echo", "input": {"q": "Nora"}}]},
+                {"text": "Nora is enrolled in LPS preschool, but the address is "
                          "not stored. To find where it's located, I would need "
                          "to search your messages.", "tool_calls": []},
                 {"text": "Brightwood Pre-School, 412 Alder Ave — from the Meet and "
@@ -193,6 +193,6 @@ def test_a_narrated_search_is_sent_back_even_after_tool_calls(monkeypatch):
             ]
         ),
     )
-    run = loop.run_loop("Where is Lia's daycare?", trigger="ask", tools=[echo_tool()])
+    run = loop.run_loop("Where is Nora's daycare?", trigger="ask", tools=[echo_tool()])
     assert "Brightwood" in run.conclusion, "the nudge produced a real answer"
     assert run.iterations == 3, "one nudge, then the earned conclusion"

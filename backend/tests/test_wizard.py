@@ -23,10 +23,7 @@ from lifeline.api.app import app
 @pytest.fixture()
 def home(tmp_path, monkeypatch):
     env_file = tmp_path / "lifeline" / "env"
-    downloads = tmp_path / "Downloads"
-    downloads.mkdir()
     monkeypatch.setattr(config_mod, "ENV_FILE", env_file)
-    monkeypatch.setattr(wizard, "DOWNLOADS", downloads)
     monkeypatch.setattr(config_mod, "_config", None)
     return tmp_path
 
@@ -56,41 +53,33 @@ def test_the_env_file_is_a_floor_never_a_ceiling(home, monkeypatch):
     monkeypatch.delenv("WIZ_FLOOR")
 
 
-def test_a_downloaded_client_secret_is_adopted_on_sight(home, monkeypatch):
-    for key in ("GOOGLE_CLIENT_ID", "GOOGLE_CLIENT_SECRET"):
-        monkeypatch.delenv(key, raising=False)
-    blob = {"installed": {"client_id": "abc.apps.googleusercontent.com",
-                          "client_secret": "s3cret"}}
-    dropped = wizard.DOWNLOADS / "client_secret_abc.apps.googleusercontent.com.json"
-    dropped.write_text(json.dumps(blob))
-
-    result = wizard.ingest_client_secret()
-
-    assert result == {"client_id": "abc.apps.googleusercontent.com"}
-    assert os.environ["GOOGLE_CLIENT_ID"] == "abc.apps.googleusercontent.com"
-    assert not dropped.exists(), "a secret does not live in Downloads"
-    assert (config_mod.ENV_FILE.parent / dropped.name).exists(), "moved, not lost"
-    for key in ("GOOGLE_CLIENT_ID", "GOOGLE_CLIENT_SECRET"):
-        monkeypatch.delenv(key, raising=False)
-
-
-def test_garbage_downloads_are_ignored(home):
-    (wizard.DOWNLOADS / "client_secret_junk.json").write_text("not json")
-    (wizard.DOWNLOADS / "client_secret_empty.json").write_text("{}")
-    assert wizard.ingest_client_secret() is None
 
 
 def test_the_status_board_is_live_checks(home, monkeypatch):
     monkeypatch.setattr(wizard, "_fda_readable", lambda: True)
-    monkeypatch.setattr(wizard, "_gcloud", lambda: "/opt/gcloud")
-    monkeypatch.setattr(wizard, "_gcloud_account", lambda: "you@gmail.com")
+    monkeypatch.setattr(wizard.applemail, "available", lambda: True)
+    monkeypatch.setattr(wizard.applemail, "permission_denied", lambda: False)
     monkeypatch.setattr(wizard, "_reachable_url", lambda: "https://mac.tailnet.ts.net")
 
     board = wizard.status()
     assert board["fda"]["readable"] is True
-    assert board["google"]["account"] == "you@gmail.com"
+    assert board["mail"]["readable"] is True
     assert board["pairing"]["reach_url"] == "https://mac.tailnet.ts.net"
     assert isinstance(board["pairing"]["devices"], int)
+    assert "google" not in board, "the Google step is gone, not hidden"
+
+
+def test_unreadable_mail_says_permission_not_absence(home, monkeypatch):
+    """The two reasons mail is missing have different fixes, and the board has
+    to say which — the field report that started all this."""
+    monkeypatch.setattr(wizard, "_fda_probe",
+                        lambda: {"readable": False, "granted_pending_restart": False})
+    monkeypatch.setattr(wizard.applemail, "available", lambda: False)
+    monkeypatch.setattr(wizard.applemail, "permission_denied", lambda: True)
+    monkeypatch.setattr(wizard, "_reachable_url", lambda: "http://localhost:8000")
+
+    board = wizard.status()
+    assert board["mail"] == {"readable": False, "needs_permission": True}
 
 
 def test_a_malformed_key_never_leaves_the_machine(home, monkeypatch):
@@ -132,18 +121,6 @@ def test_the_setup_page_is_loopback_only():
 
 
 # ------------------------------------------- field reports, 2026-08-31
-def test_gcloud_is_found_off_the_launchd_path(monkeypatch):
-    """Field report: "I installed gcloud and it keeps saying to install it."
-    Under launchd the PATH is the bare system one, so `which` can't see a
-    Homebrew or home-directory SDK — the known homes are searched too."""
-    monkeypatch.setattr(wizard.shutil, "which", lambda _: None)
-    monkeypatch.setattr(wizard.os, "access",
-                        lambda p, _: p == "/opt/homebrew/bin/gcloud")
-    assert wizard._gcloud() == "/opt/homebrew/bin/gcloud"
-
-    monkeypatch.setattr(wizard.os, "access", lambda p, _: False)
-    assert wizard._gcloud() is None
-
 
 def test_a_grant_the_process_cannot_see_reports_pending_restart(monkeypatch):
     """Field report: "I added zsh to FDA but it didn't update." TCC caches
@@ -178,21 +155,3 @@ def test_an_unmanaged_engine_never_exits_itself(monkeypatch):
     assert fired == []
 
 
-def test_missing_gcloud_is_fetched_not_prescribed(home, monkeypatch):
-    """A person who doesn't like the terminal must never be told to open
-    it. When gcloud is absent, the automation installs the SDK itself."""
-    calls = []
-    monkeypatch.setattr(wizard, "_gcloud", lambda: None)
-    monkeypatch.setattr(wizard, "_install_gcloud",
-                        lambda: calls.append("installed") or None)
-    monkeypatch.setattr(wizard, "_gcloud_account", lambda: None)
-    wizard.start_google_automation()
-    for _ in range(50):
-        with wizard._google_lock:
-            if not wizard._google_run["running"]:
-                break
-        import time as _t; _t.sleep(0.05)
-    assert calls == ["installed"], "the SDK fetch ran"
-    with wizard._google_lock:
-        assert "couldn't fetch" in (wizard._google_run["error"] or ""), \
-            "a failed fetch still fails honestly, without a brew command"

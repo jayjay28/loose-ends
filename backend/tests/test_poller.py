@@ -6,57 +6,51 @@ from datetime import timedelta
 from conftest import NOW, make_message, make_person, make_conversation
 
 from lifeline import db
-from lifeline.ingestion import google_auth
 from lifeline.jobs import poller
 
 
 def setup_people():
     make_conversation()
-    make_person("maya", "Maya", "spouse")
+    make_person("tess", "Tess", "spouse")
 
 
 # ------------------------------------------------------------- poll_sources
-def test_poll_sources_skips_cleanly_when_not_connected(monkeypatch):
+def test_poll_sources_reads_every_local_door(monkeypatch):
+    """§v3: every source is local now — no account, no connection state, and
+    nothing that can be "not configured" except an app the user doesn't use."""
     monkeypatch.setattr(poller.imessage, "poll", lambda: 0)
-    assert google_auth.is_connected() is False
-    result = poller.poll_sources()
-    assert result == {"imessage": 0, "google": "not connected", "applecal": 0}
-
-
-def test_poll_sources_calls_both_pollers_when_connected(monkeypatch):
-    db.save_oauth_token("google", "AT", "RT", None,
-                        ["https://www.googleapis.com/auth/calendar.readonly"])
-    monkeypatch.setattr(poller.imessage, "poll", lambda: 0)
-    monkeypatch.setattr(poller.gmail, "poll", lambda: 7)
-    monkeypatch.setattr(poller.gcal, "poll", lambda: 3)
+    monkeypatch.setattr(poller.applemail, "poll", lambda: 7)
+    monkeypatch.setattr(poller.applecal, "poll", lambda: 3)
 
     result = poller.poll_sources()
 
-    assert result == {"imessage": 0, "gmail": 7, "calendar": 3, "applecal": 0}
+    assert result == {"imessage": 0, "mail": 7, "applecal": 3}
 
 
-def test_poll_sources_isolates_a_gmail_failure_from_calendar():
-    """One source erroring must not prevent the other from running or
-    crash the whole poll cycle."""
-    db.save_oauth_token("google", "AT", "RT", None,
-                        ["https://www.googleapis.com/auth/calendar.readonly"])
-
+def test_poll_sources_isolates_one_failing_door(monkeypatch):
+    """One source erroring must not stop the others or crash the cycle."""
     def explode():
-        raise RuntimeError("gmail is down")
+        raise RuntimeError("mail is down")
 
-    import lifeline.jobs.poller as poller_module
+    monkeypatch.setattr(poller.imessage, "poll", lambda: 0)
+    monkeypatch.setattr(poller.applemail, "poll", explode)
+    monkeypatch.setattr(poller.applecal, "poll", lambda: 4)
 
-    original_gcal_poll = poller_module.gcal.poll
-    poller_module.gmail.poll = explode
-    poller_module.gcal.poll = lambda: 4
-    try:
-        result = poller.poll_sources()
-    finally:
-        poller_module.gcal.poll = original_gcal_poll
-        del poller_module.gmail.poll
+    result = poller.poll_sources()
 
-    assert "gmail_error" in result and "gmail is down" in result["gmail_error"]
-    assert result["calendar"] == 4
+    assert "mail_error" in result and "mail is down" in result["mail_error"]
+    assert result["applecal"] == 4
+
+
+def test_an_absent_mail_store_is_a_zero_not_a_failure(monkeypatch):
+    """A Mac without Apple Mail set up is a normal Mac, not a broken one."""
+    monkeypatch.setattr(poller.imessage, "poll", lambda: 0)
+    monkeypatch.setattr(poller.applemail, "store_root", lambda: None)
+    monkeypatch.setattr(poller.applecal, "poll", lambda: 0)
+
+    result = poller.poll_sources()
+
+    assert result["mail"] == 0 and "mail_error" not in result
 
 
 # -------------------------------------------------------------------- cycle
@@ -65,7 +59,7 @@ def test_cycle_runs_the_full_chain_and_returns_a_summary(monkeypatch):
     setup_people()
     make_message("can you call the vet, it's urgent, by tomorrow")
     summary = poller.cycle(NOW)
-    assert summary["sources"]["google"] == "not connected"
+    assert summary["sources"]["imessage"] == 0
     assert summary["extracted"] == 1
     assert "completion" in summary and "learning" in summary and "notifications" in summary
     assert db.list_items()[0].score != 0.0, "items must be scored by the end of a cycle"
@@ -99,14 +93,3 @@ def test_cycle_defaults_reference_to_now_when_omitted():
     setup_people()
     summary = poller.cycle()
     assert "at" in summary
-
-
-def test_calendar_poll_skipped_without_scope(monkeypatch):
-    db.save_oauth_token("google", "AT", "RT", None,
-                        ["https://www.googleapis.com/auth/gmail.readonly"])  # no calendar
-    monkeypatch.setattr(poller.imessage, "poll", lambda: 0)
-    monkeypatch.setattr(poller.gmail, "poll", lambda: 1, raising=False)
-    def boom(): raise AssertionError("calendar should not be polled")
-    monkeypatch.setattr(poller.gcal, "poll", boom, raising=False)
-    result = poller.poll_sources()
-    assert result["calendar"] == "scope not granted"

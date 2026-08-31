@@ -108,6 +108,3 @@ def test_the_wizard_can_watch_a_pairing_land():
     assert local_client().get("/pair/status", params={"code": code}).json()["claimed"] is True
 
 
-def test_the_google_callback_stays_reachable_for_the_browser_redirect():
-    # 4xx from the handler for a bogus code is fine; 401 from the gate is not.
-    assert remote_client().get("/auth/google/callback").status_code != 401

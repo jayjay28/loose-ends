@@ -50,7 +50,7 @@ WORLD FACTS — a second, separate output. Alongside the items, report what \
 each message STATES about the user's world: who people are, where they are \
 enrolled or employed, what organisations and places they deal with, standing \
 arrangements (accounts, memberships, appointments that recur). These are \
-facts, not tasks — "Lia attends Lakeview preschool" is a world fact \
+facts, not tasks — "Nora attends Lakeview preschool" is a world fact \
 even though nobody has to do anything about it.
 - Only what a message states or directly implies. Never infer mood, \
 character, or anything about the user's inner life.

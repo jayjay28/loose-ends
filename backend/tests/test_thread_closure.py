@@ -424,7 +424,7 @@ def test_a_silence_thread_closes_when_the_person_actually_replied():
 
     founding = make_message("any word on the meter?", is_from_user=True)
     thread = threads.create(
-        title="Maya went quiet", origin=ThreadOrigin.SILENCE,
+        title="Tess went quiet", origin=ThreadOrigin.SILENCE,
         evidence=[Evidence(kind="message", ref_id=founding.id, role="founding")],
     )
     # Her reply, sent after the silence started but ingested long after.

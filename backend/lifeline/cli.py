@@ -5,7 +5,6 @@
     python -m lifeline.cli poll
     python -m lifeline.cli today
     python -m lifeline.cli why ITEM_ID
-    python -m lifeline.cli auth-url
     python -m lifeline.cli serve
 """
 from __future__ import annotations
@@ -21,7 +20,7 @@ from . import db
 from .completion import engine
 from .config import get_config
 from .extraction import pipeline
-from .ingestion import gcal, gmail, google_auth, imessage, load_sample_corpus, whatsapp
+from .ingestion import applemail, imessage, invites, load_sample_corpus, mail, whatsapp
 from .ingestion.base import IdentityResolver
 from .jobs import poller
 from .models import InterruptionLevel
@@ -124,7 +123,6 @@ def main(argv: Optional[List[str]] = None) -> int:
     sub.add_parser("learn", help="run the learning loop")
     sub.add_parser("notify", help="queue and flush notifications")
     sub.add_parser("model", help="dump learned weights")
-    sub.add_parser("auth-url", help="print the Google authorization URL")
     sub.add_parser("pair", help="mint a pairing code for a new device (§v3)")
     sub.add_parser("purge", help="delete all extracted data")
     sub.add_parser("threads", help="print the thread stack (§v2)")
@@ -150,7 +148,7 @@ def main(argv: Optional[List[str]] = None) -> int:
         "attachments",
         help="attachment ingestion (phase 0: `scan` discovers metadata; fetch/parse land in 0.2)",
     )
-    p_att.add_argument("action", choices=["scan", "backfill", "ics"])
+    p_att.add_argument("action", choices=["backfill", "ics"])
     p_att.add_argument("--days", type=int, default=90, help="how far back to look (default 90)")
     p_att.add_argument("--limit", type=int, default=None, help="backfill: stop after this many carriers")
 
@@ -228,13 +226,6 @@ def main(argv: Optional[List[str]] = None) -> int:
     elif args.command == "model":
         print(json.dumps(learning.snapshot(), indent=2))
 
-    elif args.command == "auth-url":
-        try:
-            print(google_auth.authorization_url())
-        except google_auth.GoogleAuthError as exc:
-            print(exc, file=sys.stderr)
-            return 1
-
     elif args.command == "pair":
         from .api import auth as api_auth
         minted = api_auth.start_pairing()
@@ -277,9 +268,7 @@ def main(argv: Optional[List[str]] = None) -> int:
             ))
 
     elif args.command == "attachments":
-        if args.action == "scan":
-            print(json.dumps(gmail.scan_attachments(days=args.days), indent=2))
-        elif args.action == "backfill":
+        if args.action == "backfill":
             from .ingestion import attachments as attachments_mod
             print(json.dumps(attachments_mod.backfill(days=args.days, limit=args.limit), indent=2))
         elif args.action == "ics":
@@ -318,9 +307,9 @@ def main(argv: Optional[List[str]] = None) -> int:
         elif args.source == "whatsapp":
             n = whatsapp.import_export(path, args.contact, args.group, resolver)
         elif args.source == "gmail-sample":
-            n = gmail.import_sample(path)
+            n = mail.import_sample(path)
         else:
-            n = gcal.import_sample(path)
+            n = invites.import_sample(path)
         print(f"imported {n} records")
         print(f"extracted {len(pipeline.run())} items")
 

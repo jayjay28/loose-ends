@@ -1,8 +1,13 @@
-"""Google Calendar ingestion (§3 — first-class source, not an afterthought).
+"""Calendar invitations, parsed (§3).
 
-Provides event/deadline context, RSVP status and birthdays to the ranking
-engine, and "the event happened and wasn't cancelled" evidence to the
-completion engine. Polling uses Google's syncToken for incremental reads.
+Events give the ranking engine deadlines and RSVP status, and give the
+completion engine "the event happened and wasn't cancelled" evidence.
+
+This module owns the *shape* of an event: the `.ics` invitations that arrive
+as mail attachments, and the sample corpus. The live calendar comes from
+`applecal.py` (the local store the OS maintains) and from the phone pushing
+its own EventKit events — §v3 removed the Google Calendar API door, which
+needed an OAuth consent screen to read a calendar already sitting on disk.
 """
 from __future__ import annotations
 
@@ -12,16 +17,11 @@ from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Iterable, List, Optional
 
-import httpx
-
 from .. import db
 from ..models import CalendarEvent, now_iso
 
 log = logging.getLogger(__name__)
-from .google_auth import authed_client
 
-API = "https://www.googleapis.com/calendar/v3"
-SYNC_KEY_PREFIX = "calendar:sync_token:"
 WINDOW_PAST_DAYS = 60
 WINDOW_FUTURE_DAYS = 180
 
@@ -116,7 +116,7 @@ def import_ics(text: str, account_email: Optional[str] = None) -> int:
     """
     import icalendar
 
-    account = (account_email or db.get_sync_state("gmail:account") or "").lower()
+    account = (account_email or db.get_sync_state("applemail:account") or "").lower()
     try:
         calendar = icalendar.Calendar.from_ical(text)
     except Exception as exc:
@@ -181,60 +181,3 @@ def import_sample(path: Path) -> int:
         for e in payload.get("events", [])
     ]
     return store(events)
-
-
-# --------------------------------------------------------------- live API
-def list_calendar_ids(client: httpx.Client) -> List[str]:
-    response = client.get(f"{API}/users/me/calendarList")
-    response.raise_for_status()
-    return [c["id"] for c in response.json().get("items", []) if not c.get("deleted")]
-
-
-def _poll_calendar(client: httpx.Client, calendar_id: str) -> int:
-    sync_key = f"{SYNC_KEY_PREFIX}{calendar_id}"
-    token = db.get_sync_state(sync_key)
-    now = datetime.now(timezone.utc)
-
-    params: dict = {"singleEvents": "true", "maxResults": 250, "showDeleted": "true"}
-    if token:
-        params["syncToken"] = token
-    else:
-        params["timeMin"] = (now - timedelta(days=WINDOW_PAST_DAYS)).isoformat(timespec="seconds")
-        params["timeMax"] = (now + timedelta(days=WINDOW_FUTURE_DAYS)).isoformat(timespec="seconds")
-        params["orderBy"] = "startTime"
-
-    collected: List[CalendarEvent] = []
-    next_sync: Optional[str] = None
-    page: Optional[str] = None
-    while True:
-        if page:
-            params["pageToken"] = page
-        response = client.get(f"{API}/calendars/{calendar_id}/events", params=params)
-        if response.status_code == 410:
-            # Sync token expired — drop it and do a full window read.
-            db.set_sync_state(sync_key, "")
-            params.pop("syncToken", None)
-            params["timeMin"] = (now - timedelta(days=WINDOW_PAST_DAYS)).isoformat(timespec="seconds")
-            params["timeMax"] = (now + timedelta(days=WINDOW_FUTURE_DAYS)).isoformat(timespec="seconds")
-            page = None
-            continue
-        response.raise_for_status()
-        payload = response.json()
-        collected.extend(normalise(item, calendar_id) for item in payload.get("items", []))
-        next_sync = payload.get("nextSyncToken", next_sync)
-        page = payload.get("nextPageToken")
-        if not page:
-            break
-
-    stored = store(collected)
-    if next_sync:
-        db.set_sync_state(sync_key, next_sync)
-    return stored
-
-
-def poll() -> int:
-    with authed_client() as client:
-        total = 0
-        for calendar_id in list_calendar_ids(client):
-            total += _poll_calendar(client, calendar_id)
-        return total

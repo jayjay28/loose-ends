@@ -138,14 +138,14 @@ def test_a_thread_is_keyed_on_what_it_actually_has():
     keys = learning.thread_keys(db.get_thread(thread.id))
     assert f"thread_origin:{ThreadOrigin.USER}" in keys
     assert "thread_dated:False" in keys
-    assert "thread_person:maya" in keys
+    assert "thread_person:tess" in keys
 
 
 def test_a_thread_spanning_several_people_has_no_person_key():
     """Guessing one would key its learning on a coin flip."""
-    make_person("bobby", "Bobby")
-    a = make_item(person_id="maya", person="Maya")
-    b = make_item(person_id="bobby", person="Bobby")
+    make_person("robbie", "Robbie")
+    a = make_item(person_id="tess", person="Tess")
+    b = make_item(person_id="robbie", person="Robbie")
     thread = threads.create(title="a loop", evidence=[
         Evidence(kind="item", ref_id=a.id), Evidence(kind="item", ref_id=b.id),
     ])

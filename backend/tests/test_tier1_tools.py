@@ -1,7 +1,7 @@
 """§v2 step 3 — sharper retrieval, and the rule that makes it get used.
 
 Every case here was drawn from a real failure in `loop_runs` rather than
-imagined. The database held Boooooby Carter, Nia Coleman, two Katies and
+imagined. The database held Robbbbie Carter, Nia Coleman, two Katies and
 fourteen past calendar events, and the loop told the user it had none of them.
 """
 from __future__ import annotations
@@ -21,13 +21,13 @@ from tests.conftest import NOW, days_from_now, make_conversation, make_item, mak
 
 # --------------------------------------------------------- find_person v2
 def test_finds_a_person_through_a_misspelling():
-    """The exact miss: "Who is booooby" answered "I don't have booooby on
-    file", while `Boooooby 😛👅 Carter` sat in the database. One letter out,
-    plus emoji the old substring scan choked on."""
-    make_person("boooooby-carter", "Boooooby 😛👅 Carter")
-    hit = tools.find_person("booooby")
+    """The exact miss: a name typed one letter out answered "I don't have
+    them on file", while `Robbbbie 😛👅 Carter` sat in the database — plus
+    emoji the old substring scan choked on."""
+    make_person("robbbbie-carter", "Robbbbie 😛👅 Carter")
+    hit = tools.find_person("robbbie")
     assert hit is not None
-    assert hit["person_id"] == "boooooby-carter"
+    assert hit["person_id"] == "robbbbie-carter"
 
 
 def test_finds_a_person_by_first_name_only():
@@ -68,7 +68,7 @@ def test_email_matches_case_insensitively():
 def test_nonsense_still_returns_nothing():
     """Loose matching must not mean matching anything — a confident wrong
     person is worse than an honest miss."""
-    make_person("maya", "Maya")
+    make_person("tess", "Tess")
     assert tools.find_person("zzzqqxvv") is None
 
 
@@ -91,7 +91,7 @@ def test_search_filters_by_direction_and_source():
     mine = tools.search_messages(query="vets", direction="from_you")
     assert [h["sender"] for h in mine] == ["You"]
     theirs = tools.search_messages(query="vets", direction="from_them")
-    assert [h["sender"] for h in theirs] == ["Maya"]
+    assert [h["sender"] for h in theirs] == ["Tess"]
     assert tools.search_messages(query="vets", source="gmail") == []
 
 
@@ -248,10 +248,10 @@ def test_a_conclusion_with_no_tool_calls_is_sent_back_to_look(monkeypatch, excus
     monkeypatch.setattr(providers, "available", lambda: [_provider([
         {"text": excuse, "tool_calls": []},
         {"text": "", "tool_calls": [{"id": "c1", "name": "echo", "input": {"q": "looking"}}]},
-        {"text": "Found them — Boooooby Carter.", "tool_calls": []},
+        {"text": "Found them — Robbbbie Carter.", "tool_calls": []},
     ])])
     run = loop.run_loop("who is booooby", trigger="converse", tools=[_echo()])
-    assert run.conclusion == "Found them — Boooooby Carter."
+    assert run.conclusion == "Found them — Robbbbie Carter."
     assert [c["name"] for c in run.tool_calls] == ["echo"]
 
 
@@ -269,9 +269,9 @@ def test_an_honest_miss_after_looking_is_accepted(monkeypatch):
 
 def test_a_normal_answer_is_not_second_guessed(monkeypatch):
     monkeypatch.setattr(providers, "available", lambda: [_provider([
-        {"text": "You owe Maya a call about the vet.", "tool_calls": []},
+        {"text": "You owe Tess a call about the vet.", "tool_calls": []},
     ])])
-    run = loop.run_loop("what do I owe Maya", trigger="converse", tools=[_echo()])
+    run = loop.run_loop("what do I owe Tess", trigger="converse", tools=[_echo()])
     assert run.iterations == 1
 
 
@@ -393,17 +393,17 @@ def test_draft_brief_carries_the_thread_its_evidence_and_its_people():
     from lifeline import threads
     from lifeline.models import Evidence
 
-    make_person("bobby", "Bobby")
+    make_person("robbie", "Robbie")
     make_conversation()
-    item = make_item(person_id="bobby", person="Bobby", text="let me know when you're out")
+    item = make_item(person_id="robbie", person="Robbie", text="let me know when you're out")
     thread = threads.create(
-        title="Sort out Bobby's message", summary="he asked and you never said",
+        title="Sort out Robbie's message", summary="he asked and you never said",
         evidence=[Evidence(kind="item", ref_id=item.id, role="founding")],
     )
 
     brief = threads.draft_brief(thread.id)
-    assert brief["title"] == "Sort out Bobby's message"
-    assert brief["people"][0]["name"] == "Bobby"
+    assert brief["title"] == "Sort out Robbie's message"
+    assert brief["people"][0]["name"] == "Robbie"
     assert "looks_automated" in brief["people"][0]
     assert brief["evidence"][0]["what"]
 
@@ -429,20 +429,20 @@ def test_draft_endpoint_returns_the_written_message(monkeypatch):
     from lifeline.api.app import app
     from lifeline.models import Evidence
 
-    make_person("bobby", "Bobby", handles=["+19175550187"])
+    make_person("robbie", "Robbie", handles=["+19175550187"])
     make_conversation()
-    item = make_item(person_id="bobby", person="Bobby", text="let me know when you're out")
-    thread = threads.create(title="Get back to Bobby",
+    item = make_item(person_id="robbie", person="Robbie", text="let me know when you're out")
+    thread = threads.create(title="Get back to Robbie",
                             evidence=[Evidence(kind="item", ref_id=item.id)])
 
     monkeypatch.setattr(providers, "available", lambda: [_provider([
         {"text": "", "tool_calls": [{"id": "c1", "name": "draft_message",
-                                     "input": {"person_id": "bobby", "text": "just got out, all good"}}]},
-        {"text": "Drafted a short reply to Bobby.", "tool_calls": []},
+                                     "input": {"person_id": "robbie", "text": "just got out, all good"}}]},
+        {"text": "Drafted a short reply to Robbie.", "tool_calls": []},
     ])])
     body = TestClient(app).post(f"/threads/{thread.id}/draft").json()
     assert body["draft"]["text"] == "just got out, all good"
-    assert body["draft"]["person"] == "Bobby"
+    assert body["draft"]["person"] == "Robbie"
 
 
 def test_draft_endpoint_reports_a_refusal_rather_than_inventing_one(monkeypatch):

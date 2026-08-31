@@ -827,7 +827,7 @@ def why(thread: Thread, reference: Optional[datetime] = None) -> Optional[Dict[s
     now = _now(reference)
 
     if thread.state in ThreadState.CLOSED:
-        return {"kind": "tied", "text": "tied off"}
+        return {"kind": "tied", "text": "closed"}
     if thread.state == ThreadState.QUIET:
         return None
 

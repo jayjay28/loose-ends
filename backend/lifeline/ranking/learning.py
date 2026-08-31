@@ -153,7 +153,7 @@ def learn_from_latency(reference: Optional[datetime] = None) -> int:
     **§v2 step 7a — only move a weight when the evidence moved.** This nudged
     every person on every poll cycle whether or not a single new message had
     arrived. Reply latencies do not change on their own, so the same fact was
-    re-applied 288 times a day: `person:boooooby-carter` accumulated 1,041
+    re-applied 288 times a day: `person:robbbbie-carter` accumulated 1,041
     "observations" and saturated at 0.9996, while 19 of 41 people sat untouched
     at the 0.5125 prior because they never cleared the three-latency minimum.
     That is a has-enough-replies proxy, not learned importance.

@@ -25,7 +25,7 @@ client = TestClient(app)
 
 def setup_people():
     make_conversation()
-    make_person("maya", "Maya", "spouse")
+    make_person("tess", "Tess", "spouse")
     make_person("dev", "Dev Shah", "friend")
 
 
@@ -35,7 +35,7 @@ def test_health_reports_configuration_state():
     assert response.status_code == 200
     body = response.json()
     assert body["ok"] is True
-    assert body["google_connected"] is False
+    assert body["mail_readable"] is False
     assert body["claude_configured"] is False
 
 
@@ -109,40 +109,40 @@ def test_today_carries_the_why_explanation():
 # ---------------------------------------------------------------- threads
 def test_threads_lists_one_summary_per_person():
     setup_people()
-    make_item(person_id="maya", person="Maya", text="thing one")
-    make_item(person_id="maya", person="Maya", text="thing two")
+    make_item(person_id="tess", person="Tess", text="thing one")
+    make_item(person_id="tess", person="Tess", text="thing two")
     make_item(person_id="dev", person="Dev Shah", text="thing three")
     scorer.rescore_all(NOW)
     body = client.get("/conversations").json()
     by_person = {t["person"]: t for t in body}
-    assert by_person["Maya"]["open_count"] == 2
+    assert by_person["Tess"]["open_count"] == 2
     assert by_person["Dev Shah"]["open_count"] == 1
 
 
 def test_thread_items_only_shows_that_persons_open_items():
     setup_people()
-    make_item(person_id="maya", person="Maya", text="maya's thing")
+    make_item(person_id="tess", person="Tess", text="tess's thing")
     make_item(person_id="dev", person="Dev Shah", text="dev's thing")
     scorer.rescore_all(NOW)
-    body = client.get("/conversations/maya").json()
+    body = client.get("/conversations/tess").json()
     assert len(body) == 1
-    assert body[0]["person"] == "Maya"
+    assert body[0]["person"] == "Tess"
 
 
 def test_thread_items_excludes_completed():
     setup_people()
-    item = make_item(person_id="maya", person="Maya", text="maya's thing")
+    item = make_item(person_id="tess", person="Tess", text="tess's thing")
     engine.manual_close(item.id)
-    assert client.get("/conversations/maya").json() == []
+    assert client.get("/conversations/tess").json() == []
 
 
 # ---------------------------------------------------------------- history
 def test_history_reports_how_items_closed():
     setup_people()
-    manual = make_item(person_id="maya", person="Maya", text="closed by hand")
+    manual = make_item(person_id="tess", person="Tess", text="closed by hand")
     engine.manual_close(manual.id)
 
-    auto = make_item(item_type="purchase", text="I want that Lemaire croissant bag", person_id="maya", person="Maya")
+    auto = make_item(item_type="purchase", text="I want that Lemaire croissant bag", person_id="tess", person="Tess")
     auto.entities.item = "Lemaire croissant bag"
     db.save_item(auto)
     from lifeline.models import Message, Conversation, new_id
@@ -175,17 +175,17 @@ def test_history_reports_how_items_closed():
 
 def test_history_excludes_open_items():
     setup_people()
-    make_item(person_id="maya", person="Maya", text="still open")
+    make_item(person_id="tess", person="Tess", text="still open")
     assert client.get("/history").json()["entries"] == []
 
 
 # ------------------------------------------------------------------ items
 def test_item_detail_returns_full_payload():
     setup_people()
-    item = make_item(person_id="maya", person="Maya", text="a thing")
+    item = make_item(person_id="tess", person="Tess", text="a thing")
     body = client.get(f"/items/{item.id}").json()
     assert body["id"] == item.id
-    assert body["person"] == "Maya"
+    assert body["person"] == "Tess"
 
 
 def test_item_detail_404_for_unknown_id():
@@ -195,7 +195,7 @@ def test_item_detail_404_for_unknown_id():
 # ---------------------------------------------------------------- actions
 def test_view_logs_a_viewed_behavior_event():
     setup_people()
-    item = make_item(person_id="maya", person="Maya")
+    item = make_item(person_id="tess", person="Tess")
     response = client.post(f"/items/{item.id}/view")
     assert response.status_code == 200
     assert db.behavior_counts(item.id).get("viewed") == 1
@@ -203,7 +203,7 @@ def test_view_logs_a_viewed_behavior_event():
 
 def test_view_expanded_logs_an_expanded_event():
     setup_people()
-    item = make_item(person_id="maya", person="Maya")
+    item = make_item(person_id="tess", person="Tess")
     client.post(f"/items/{item.id}/view", params={"expanded": True})
     assert db.behavior_counts(item.id).get("expanded") == 1
 
@@ -220,7 +220,7 @@ def test_act_records_acted_and_reinforces_the_sender_weight():
 
 def test_done_closes_the_item_manually():
     setup_people()
-    item = make_item(person_id="maya", person="Maya")
+    item = make_item(person_id="tess", person="Tess")
     response = client.post(f"/items/{item.id}/done")
     assert response.status_code == 200
     assert response.json()["item"]["status"] == "completed"
@@ -233,7 +233,7 @@ def test_done_404_for_unknown_item():
 
 def test_snooze_with_explicit_hours():
     setup_people()
-    item = make_item(person_id="maya", person="Maya")
+    item = make_item(person_id="tess", person="Tess")
     response = client.post(f"/items/{item.id}/snooze", json={"hours": 2})
     assert response.status_code == 200
     stored = db.get_item(item.id)
@@ -244,7 +244,7 @@ def test_snooze_with_explicit_hours():
 
 def test_snooze_with_explicit_until():
     setup_people()
-    item = make_item(person_id="maya", person="Maya")
+    item = make_item(person_id="tess", person="Tess")
     until = "2026-08-01T09:00:00+00:00"
     response = client.post(f"/items/{item.id}/snooze", json={"until": until})
     assert response.json()["item"]["snoozed_until"] == until
@@ -252,7 +252,7 @@ def test_snooze_with_explicit_until():
 
 def test_snooze_defaults_to_24_hours():
     setup_people()
-    item = make_item(person_id="maya", person="Maya")
+    item = make_item(person_id="tess", person="Tess")
     client.post(f"/items/{item.id}/snooze", json={})
     stored = db.get_item(item.id)
     assert stored.snoozed_until is not None
@@ -324,7 +324,7 @@ def test_reject_404_for_unknown_signal():
 # ------------------------------------------------------------------- sync
 def test_sync_changes_returns_everything_with_no_since():
     setup_people()
-    make_item(person_id="maya", person="Maya")
+    make_item(person_id="tess", person="Tess")
     make_item(person_id="dev", person="Dev Shah")
     body = client.get("/sync/changes").json()
     assert len(body["items"]) == 2
@@ -338,7 +338,7 @@ def test_sync_changes_since_is_incremental():
     stamp forward explicitly rather than depending on wall-clock timing.
     """
     setup_people()
-    make_item(person_id="maya", person="Maya")
+    make_item(person_id="tess", person="Tess")
     checkpoint = client.get("/sync/changes").json()["server_time"]
     later = make_item(person_id="dev", person="Dev Shah")
     # `updated_at` is real wall-clock time (db.save_item always stamps
@@ -357,7 +357,7 @@ def test_sync_changes_since_is_incremental():
 
 def test_sync_changes_since_now_is_empty():
     setup_people()
-    make_item(person_id="maya", person="Maya")
+    make_item(person_id="tess", person="Tess")
     now = client.get("/sync/changes").json()["server_time"]
     assert client.get("/sync/changes", params={"since": now}).json()["items"] == []
 
@@ -371,7 +371,7 @@ def test_sync_changes_includes_open_confirmations():
 
 def test_sync_poll_waits_and_returns_a_summary():
     setup_people()
-    make_item(person_id="maya", person="Maya", text="can you call the vet by tomorrow")
+    make_item(person_id="tess", person="Tess", text="can you call the vet by tomorrow")
     response = client.post("/sync/poll", params={"wait": True})
     assert response.status_code == 200
     body = response.json()
@@ -428,35 +428,14 @@ def test_ingest_import_imessage_export(sample_dir):
     assert body["items_extracted"] > 0
 
 
-# ---------------------------------------------------------------- google
-def test_google_start_fails_cleanly_without_credentials():
-    """No client id/secret configured in the test environment — must not
-    attempt any network call, just report the missing configuration."""
-    response = client.get("/auth/google/start", follow_redirects=False)
-    assert response.status_code == 400
+# ---------------------------------------------------------------- setup
 
 
-def test_google_callback_reports_provider_error():
-    response = client.get("/auth/google/callback", params={"error": "access_denied"})
-    assert response.status_code == 400
-    assert "access_denied" in response.text
 
 
-def test_google_callback_requires_a_code():
-    response = client.get("/auth/google/callback")
-    assert response.status_code == 400
-
-
-def test_google_disconnect_is_always_safe():
-    response = client.post("/auth/google/disconnect")
-    assert response.status_code == 200
-    assert response.json() == {"connected": False}
-
-
-# ------------------------------------------------------------------ admin
 def test_purge_clears_all_extracted_data():
     setup_people()
-    make_item(person_id="maya", person="Maya")
+    make_item(person_id="tess", person="Tess")
     assert client.post("/admin/purge").json() == {"purged": True}
     assert db.list_items() == []
 
@@ -479,7 +458,7 @@ def test_briefing_empty_state_is_caught_up():
 
 def test_briefing_surfaces_one_now_and_ranks_waiting_by_tie():
     setup_people()
-    make_item(person_id="maya", person="Maya", item_type="question", text="can you confirm dinner")
+    make_item(person_id="tess", person="Tess", item_type="question", text="can you confirm dinner")
     make_item(person_id="dev", person="Dev Shah", item_type="promise", text="send the deck over")
     make_item(person_id="dev", person="Dev Shah", item_type="reading", text="read this later")
     # Both the scoring and the read are pinned to the fixture clock.
@@ -502,7 +481,7 @@ def test_briefing_surfaces_one_now_and_ranks_waiting_by_tie():
     ties = [w["tie_strength"] for w in body["waiting"]]
     assert ties == sorted(ties, reverse=True)
     # reading isn't "someone waiting on you" — it's excluded, and doesn't inflate counts
-    assert {w["person"] for w in body["waiting"]} == {"Maya", "Dev Shah"}
+    assert {w["person"] for w in body["waiting"]} == {"Tess", "Dev Shah"}
     dev = next(w for w in body["waiting"] if w["person"] == "Dev Shah")
     assert dev["open_count"] == 1
 
@@ -510,9 +489,9 @@ def test_briefing_surfaces_one_now_and_ranks_waiting_by_tie():
 # -------------------------------------------------------------------- /ask
 def test_ask_reports_what_you_owe_a_person():
     setup_people()
-    make_item(person_id="maya", person="Maya", item_type="promise", text="send the invoice over")
-    body = client.post("/ask", json={"question": "what do I owe Maya?"}).json()
-    assert "Maya" in body["answer"]
+    make_item(person_id="tess", person="Tess", item_type="promise", text="send the invoice over")
+    body = client.post("/ask", json={"question": "what do I owe Tess?"}).json()
+    assert "Tess" in body["answer"]
     assert body["sources"]
 
 
@@ -533,7 +512,7 @@ def test_calendar_sync_stores_device_events():
 # --------------------------------------------------------------- enrichment
 def test_item_enriched_returns_grounded_headline():
     setup_people()
-    it = make_item(person_id="maya", person="Maya", item_type="question", text="can you confirm dinner")
+    it = make_item(person_id="tess", person="Tess", item_type="question", text="can you confirm dinner")
     body = client.get(f"/items/{it.id}/enriched").json()
     assert body["headline"]
     assert "briefing" in body
@@ -543,13 +522,13 @@ def test_item_enriched_returns_grounded_headline():
 def test_similar_message_stats_detects_a_recurring_pattern():
     from lifeline.assistant import tools
     from lifeline.models import Message, new_id
-    make_conversation(); make_person("maya", "Maya")
+    make_conversation(); make_person("tess", "Tess")
     for n in range(3):
         db.insert_messages([Message(
             id=new_id(), source="imessage", conversation_id="imessage:t1", external_id=new_id(),
-            person_id="maya", is_from_user=False,
+            person_id="tess", is_from_user=False,
             timestamp=days_from_now(-n * 7), text="your parking permit renewal is due")])
-    it = make_item(person_id="maya", person="Maya", text="your parking permit renewal is due")
+    it = make_item(person_id="tess", person="Tess", text="your parking permit renewal is due")
     stats = tools.similar_message_stats(it)
     assert stats["count"] >= 3 and stats["recurring"] is True
 
@@ -560,7 +539,7 @@ def test_dossier_surfaces_why_and_your_last_word():
     setup_people(); make_conversation()
     make_message("can you send the deck?", is_from_user=False, at=NOW - timedelta(minutes=5))
     make_message("on it, tomorrow", is_from_user=True, at=NOW)   # you spoke last
-    it = make_item(person_id="maya", person="Maya", item_type="question", text="can you send the deck?")
+    it = make_item(person_id="tess", person="Tess", item_type="question", text="can you send the deck?")
     scorer.rescore_all(NOW)
     d = client.get(f"/items/{it.id}/dossier").json()
     assert d["your_last_word"]["text"] == "on it, tomorrow"

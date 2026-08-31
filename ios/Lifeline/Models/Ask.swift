@@ -56,7 +56,7 @@ struct KnownFact: Codable, Identifiable, Hashable, Sendable {
 
     var id: String { factId }
 
-    /// "Lia Carter — attends: Brightwood Pre-School", readable at a glance.
+    /// "Nora Carter — attends: Brightwood Pre-School", readable at a glance.
     var line: String { "\(entity) — \(predicate.replacingOccurrences(of: "_", with: " ")): \(value)" }
 }
 

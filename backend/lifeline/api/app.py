@@ -31,7 +31,7 @@ from ..assistant import tools as assistant_tools
 from ..extraction import batching, budget, pipeline, providers, topics
 from ..extraction.dates import days_until
 from ..extraction.claude import _parse_json
-from ..ingestion import gcal, gmail, google_auth, imessage, whatsapp
+from ..ingestion import applemail, imessage, invites, whatsapp
 from ..ingestion.base import IdentityResolver
 from ..jobs import poller
 from ..models import (
@@ -164,7 +164,7 @@ def _confirmations() -> List[ConfirmationOut]:
 def doctor_report() -> Dict[str, Any]:
     """Every integration, exercised rather than inspected.
 
-    `/health` reports configuration and answered `google_connected: true`
+    `/health` reports configuration and answered `mail_readable: true`
     throughout the thirteen days Gmail was dead — the token row existed, it
     just did not work. This one refreshes the token, opens `chat.db` and makes
     a real (free) model call, so the answer is what would actually happen.
@@ -183,7 +183,7 @@ def health() -> Dict[str, Any]:
     return {
         "ok": True,
         "version": app.version,
-        "google_connected": google_auth.is_connected(),
+        "mail_readable": applemail.available(),
         "claude_configured": cfg.has_claude,
         "gemini_configured": cfg.has_gemini,
         "apns_configured": cfg.has_apns,
@@ -488,7 +488,7 @@ def ask(body: AskIn) -> AskOut:
     if not question:
         raise HTTPException(status_code=400, detail="empty question")
 
-    # §v2.8 phase 4 — resolve names before any search runs. "Lia" becomes a
+    # §v2.8 phase 4 — resolve names before any search runs. "Nora" becomes a
     # person whose facts supply the vocabulary the search needs.
     from .. import world
     prompt = question
@@ -679,7 +679,7 @@ def converse(body: ConverseIn) -> ConverseOut:
 
     # Offline / failed. Nothing the user says is ever dropped: questions get
     # the plain tool report, and any non-question sentences are kept verbatim —
-    # including in mixed input ("I moved my gym to mornings. What do I owe Maya?").
+    # including in mixed input ("I moved my gym to mornings. What do I owe Tess?").
     sentences = re.split(r"(?<=[.!?])\s+", text)
     statements = " ".join(s for s in sentences if s and not s.rstrip().endswith("?")).strip()
     questions = any(s.rstrip().endswith("?") for s in sentences)
@@ -1688,15 +1688,6 @@ def ingest_import(body: ImportIn) -> Dict[str, Any]:
     return {"messages_imported": count, "items_extracted": len(created)}
 
 
-# ------------------------------------------------------------ google auth
-@app.get("/auth/google/start")
-def google_start() -> RedirectResponse:
-    try:
-        return RedirectResponse(google_auth.authorization_url())
-    except google_auth.GoogleAuthError as exc:
-        raise HTTPException(400, str(exc))
-
-
 # §v3 workstream 5 — what a relayed knock resolves to. The relay carried
 # only ids; the phone's notification extension calls here (bearer-authed,
 # like everything) to fetch the words this engine queued, so the alert the
@@ -1737,30 +1728,8 @@ def setup_page() -> HTMLResponse:
 
 
 @app.get("/setup/status")
-def setup_status(watch_downloads: bool = False) -> Dict[str, Any]:
-    ingested = setup_wizard.ingest_client_secret() if watch_downloads else None
-    body = setup_wizard.status()
-    body["ingested"] = ingested
-    return body
-
-
-@app.post("/setup/google/start")
-def setup_google_start() -> Dict[str, Any]:
-    return setup_wizard.start_google_automation()
-
-
-@app.post("/setup/google/console")
-def setup_google_console() -> Dict[str, Any]:
-    setup_wizard.open_console()
-    return setup_wizard.console_urls()
-
-
-@app.get("/setup/google/auth-url")
-def setup_google_auth_url() -> Dict[str, str]:
-    try:
-        return {"url": google_auth.authorization_url()}
-    except google_auth.GoogleAuthError as exc:
-        raise HTTPException(400, str(exc))
+def setup_status() -> Dict[str, Any]:
+    return setup_wizard.status()
 
 
 @app.post("/setup/fda/open")
@@ -1846,23 +1815,6 @@ def auth_token_revoke(token_id: str) -> Dict[str, Any]:
     if not api_auth.revoke_token(token_id):
         raise HTTPException(404, "no live token with that id")
     return {"status": "revoked"}
-
-
-@app.get("/auth/google/callback", response_class=HTMLResponse)
-def google_callback(code: Optional[str] = None, error: Optional[str] = None) -> HTMLResponse:
-    if error or not code:
-        return HTMLResponse(f"<h2>Authorization failed</h2><p>{error or 'no code returned'}</p>", status_code=400)
-    try:
-        google_auth.exchange_code(code)
-    except google_auth.GoogleAuthError as exc:
-        return HTMLResponse(f"<h2>Token exchange failed</h2><pre>{exc}</pre>", status_code=400)
-    return HTMLResponse("<h2>Lifeline is connected</h2><p>You can close this tab.</p>")
-
-
-@app.post("/auth/google/disconnect")
-def google_disconnect() -> Dict[str, Any]:
-    google_auth.disconnect()
-    return {"connected": False}
 
 
 # ---------------------------------------------------------------- devices

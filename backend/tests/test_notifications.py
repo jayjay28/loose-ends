@@ -13,7 +13,7 @@ from lifeline.ranking import scorer
 
 def setup_people():
     make_conversation()
-    make_person("maya", "Maya", "spouse")
+    make_person("tess", "Tess", "spouse")
     make_person("dev", "Dev Shah", "friend")
 
 
@@ -212,12 +212,12 @@ def test_digest_never_repeats_an_already_digested_item():
 
 def test_digest_names_the_senders():
     setup_people()
-    make_item(text="no rush at all, whenever, thing one", person_id="maya", person="Maya")
+    make_item(text="no rush at all, whenever, thing one", person_id="tess", person="Tess")
     make_item(text="no rush at all, whenever, thing two", person_id="dev", person="Dev Shah")
     scorer.rescore_all(NOW)
     digest_id = scheduler.queue_passive_digest(NOW)
     row = db.get_connection().execute("SELECT * FROM notifications WHERE id = ?", (digest_id,)).fetchone()
-    assert "Maya" in row["body"] and "Dev Shah" in row["body"]
+    assert "Tess" in row["body"] and "Dev Shah" in row["body"]
 
 
 # ---------------------------------------------------------------- completion

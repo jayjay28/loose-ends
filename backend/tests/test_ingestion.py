@@ -2,19 +2,19 @@
 from __future__ import annotations
 
 from lifeline import db
-from lifeline.ingestion import gcal, gmail, imessage, load_people, load_sample_corpus, whatsapp
+from lifeline.ingestion import invites, mail, imessage, load_people, load_sample_corpus, whatsapp
 from lifeline.ingestion.base import IdentityResolver, normalise_handle, stable_message_id
 
 
 def test_handle_normalisation_collapses_phone_formats():
     assert normalise_handle("+1 (415) 555-0142") == normalise_handle("4155550142")
-    assert normalise_handle("MAYA@Example.com ") == "maya@example.com"
+    assert normalise_handle("TESS@Example.com ") == "tess@example.com"
 
 
 def test_identity_resolver_matches_known_handles(sample_dir):
     load_people(sample_dir / "people.json")
     resolver = IdentityResolver()
-    assert resolver.resolve("+14155550142").id == "maya"
+    assert resolver.resolve("+14155550142").id == "tess"
     assert resolver.resolve("dev.shah@hey.com").id == "dev"
 
 
@@ -86,8 +86,8 @@ def test_whatsapp_skips_system_lines(tmp_path):
 
 
 def test_gmail_from_header_parsing():
-    assert gmail.parse_from("Dev Shah <dev.shah@hey.com>") == ("Dev Shah", "dev.shah@hey.com")
-    assert gmail.parse_from("plain@example.com") == (None, "plain@example.com")
+    assert mail.parse_from("Dev Shah <dev.shah@hey.com>") == ("Dev Shah", "dev.shah@hey.com")
+    assert mail.parse_from("plain@example.com") == (None, "plain@example.com")
 
 
 def test_gmail_body_extraction_prefers_plain_text():
@@ -101,7 +101,7 @@ def test_gmail_body_extraction_prefers_plain_text():
             {"mimeType": "text/html", "body": {"data": encode("<p>the html part</p>")}},
         ],
     }
-    assert gmail.extract_body(payload) == "the plain part"
+    assert mail.extract_body(payload) == "the plain part"
 
 
 def test_gmail_body_falls_back_to_stripped_html():
@@ -111,7 +111,7 @@ def test_gmail_body_falls_back_to_stripped_html():
         "mimeType": "text/html",
         "body": {"data": base64.urlsafe_b64encode(b"<div>hello <b>there</b></div>").decode()},
     }
-    assert gmail.extract_body(payload) == "hello there"
+    assert mail.extract_body(payload) == "hello there"
 
 
 def _mime_tree_with_attachments():
@@ -154,9 +154,9 @@ def test_gmail_attachments_are_seen_not_dropped():
     which is why zero of the 125 attachment-bearing messages from the last 90
     days left any trace in the store."""
     payload = _mime_tree_with_attachments()
-    assert gmail.extract_body(payload) == "see attached"    # body still works
+    assert mail.extract_body(payload) == "see attached"    # body still works
 
-    found = gmail.extract_attachments(payload)
+    found = mail.extract_attachments(payload)
     assert [a["filename"] for a in found] == ["asthma-action-plan.pdf", "invite.ics"]
     assert found[0] == {
         "filename": "asthma-action-plan.pdf",
@@ -165,7 +165,7 @@ def test_gmail_attachments_are_seen_not_dropped():
         "attachment_id": "att-123",
     }
     # Body parts have no filename and must never appear as attachments.
-    assert gmail.extract_attachments({"mimeType": "text/plain", "body": {"data": "eA=="}}) == []
+    assert mail.extract_attachments({"mimeType": "text/plain", "body": {"data": "eA=="}}) == []
 
 
 def test_gmail_attachment_metadata_reaches_the_stored_message():
@@ -183,11 +183,11 @@ def test_gmail_attachment_metadata_reaches_the_stored_message():
             **_mime_tree_with_attachments(),
         },
     }
-    rec = gmail.normalise(raw)
+    rec = mail.normalise(raw)
     assert len(rec["attachments"]) == 2
-    gmail.store([rec])
+    mail.store([rec])
 
-    stored = db.messages_since("2000-01-01", source="gmail")[0]
+    stored = db.messages_since("2000-01-01", source="mail")[0]
     names = [a["filename"] for a in stored.metadata["attachments"]]
     assert names == ["asthma-action-plan.pdf", "invite.ics"]
 
@@ -200,8 +200,8 @@ def test_gmail_attachment_metadata_reaches_the_stored_message():
             "mimeType": "text/plain", "body": {"data": "aGVsbG8="},
         },
     }
-    gmail.store([gmail.normalise(raw_plain)])
-    plain = [m for m in db.messages_since("2000-01-01", source="gmail") if m.external_id == "g-plain-1"][0]
+    mail.store([mail.normalise(raw_plain)])
+    plain = [m for m in db.messages_since("2000-01-01", source="mail") if m.external_id == "g-plain-1"][0]
     assert "attachments" not in plain.metadata
 
 
@@ -216,33 +216,33 @@ def test_update_message_metadata_merges_without_clobbering():
             "mimeType": "text/plain", "body": {"data": "aGVsbG8="},
         },
     }
-    gmail.store([gmail.normalise(raw)])
+    mail.store([mail.normalise(raw)])
 
     patch = {"attachments": [{"filename": "form.pdf", "mime": "application/pdf", "size": 1, "attachment_id": "a1"}]}
-    assert db.update_message_metadata("gmail", "g-old-1", patch) is True
-    assert db.update_message_metadata("gmail", "no-such-message", patch) is False
+    assert db.update_message_metadata("mail", "g-old-1", patch) is True
+    assert db.update_message_metadata("mail", "no-such-message", patch) is False
 
-    row = [m for m in db.messages_since("2000-01-01", source="gmail") if m.external_id == "g-old-1"][0]
+    row = [m for m in db.messages_since("2000-01-01", source="mail") if m.external_id == "g-old-1"][0]
     assert row.metadata["starred"] is True          # existing keys survive the merge
     assert row.metadata["attachments"][0]["filename"] == "form.pdf"
 
 
 def test_gmail_sample_records_explicit_signals(sample_dir):
-    gmail.import_sample(sample_dir / "gmail_sample.json")
-    starred = [m for m in db.messages_since("2000-01-01", source="gmail") if m.metadata.get("starred")]
+    mail.import_sample(sample_dir / "gmail_sample.json")
+    starred = [m for m in db.messages_since("2000-01-01", source="mail") if m.metadata.get("starred")]
     assert len(starred) == 1
     assert "medicare" in starred[0].text.lower()
 
 
 def test_calendar_sample_captures_rsvp(sample_dir):
-    gcal.import_sample(sample_dir / "calendar_sample.json")
+    invites.import_sample(sample_dir / "calendar_sample.json")
     events = {e.id: e for e in db.list_calendar_events()}
     assert events["cal-2003"].self_response == "needsAction"
     assert events["cal-2002"].summary == "Grandma's 80th"
 
 
 def test_calendar_normalise_handles_all_day_events():
-    event = gcal.normalise({"id": "x", "summary": "Birthday", "start": {"date": "2026-09-11"}, "end": {"date": "2026-09-12"}})
+    event = invites.normalise({"id": "x", "summary": "Birthday", "start": {"date": "2026-09-11"}, "end": {"date": "2026-09-12"}})
     assert event.start_at.startswith("2026-09-11T00:00")
 
 
@@ -250,13 +250,13 @@ def test_sample_corpus_loads_every_source(sample_dir):
     counts = load_sample_corpus(sample_dir)
     assert counts["imessage"] == 12
     assert counts["whatsapp"] == 10
-    assert counts["gmail"] == 8
+    assert counts["mail"] == 8
     assert counts["calendar"] == 5
 
 
 def test_stable_message_id_is_deterministic():
-    assert stable_message_id("gmail", "abc") == stable_message_id("gmail", "abc")
-    assert stable_message_id("gmail", "abc") != stable_message_id("imessage", "abc")
+    assert stable_message_id("mail", "abc") == stable_message_id("mail", "abc")
+    assert stable_message_id("mail", "abc") != stable_message_id("imessage", "abc")
 
 
 # ------------------------------------------------- Gmail Primary-only filter
@@ -265,35 +265,35 @@ def _mail(labels, frm="Sam <sam@example.com>", **kw):
 
 
 def test_gmail_keeps_real_people_in_primary():
-    assert gmail.is_primary_inbound(_mail(["INBOX", "CATEGORY_PERSONAL"]))
-    assert gmail.is_primary_inbound(_mail(["INBOX"]))  # primary often has no category label
+    assert mail.is_primary_inbound(_mail(["INBOX", "CATEGORY_PERSONAL"]))
+    assert mail.is_primary_inbound(_mail(["INBOX"]))  # primary often has no category label
 
 
 def test_gmail_drops_promotions_social_updates():
     for cat in ("CATEGORY_PROMOTIONS", "CATEGORY_SOCIAL", "CATEGORY_UPDATES", "CATEGORY_FORUMS"):
-        assert not gmail.is_primary_inbound(_mail(["INBOX", cat]))
+        assert not mail.is_primary_inbound(_mail(["INBOX", cat]))
 
 
 def test_gmail_drops_archived_and_bulk_and_machine_senders():
-    assert not gmail.is_primary_inbound(_mail(["CATEGORY_PERSONAL"]))            # not in inbox
-    assert not gmail.is_primary_inbound(_mail(["INBOX"], list_unsubscribe=True))  # newsletter
-    assert not gmail.is_primary_inbound(_mail(["INBOX"], precedence="bulk"))
-    assert not gmail.is_primary_inbound(_mail(["INBOX"], auto_submitted="auto-generated"))
-    assert not gmail.is_primary_inbound(_mail(["INBOX"], frm="Acme <no-reply@acme.com>"))
-    assert not gmail.is_primary_inbound(_mail(["INBOX"], frm="GitHub <notifications@github.com>"))
+    assert not mail.is_primary_inbound(_mail(["CATEGORY_PERSONAL"]))            # not in inbox
+    assert not mail.is_primary_inbound(_mail(["INBOX"], list_unsubscribe=True))  # newsletter
+    assert not mail.is_primary_inbound(_mail(["INBOX"], precedence="bulk"))
+    assert not mail.is_primary_inbound(_mail(["INBOX"], auto_submitted="auto-generated"))
+    assert not mail.is_primary_inbound(_mail(["INBOX"], frm="Acme <no-reply@acme.com>"))
+    assert not mail.is_primary_inbound(_mail(["INBOX"], frm="GitHub <notifications@github.com>"))
 
 
 def test_gmail_never_drops_important_or_high_stakes_mail():
     # A no-reply address in the Updates tab would normally be filtered...
     noreply_update = _mail(["INBOX", "CATEGORY_UPDATES"], frm="City of X <no-reply@city.gov>",
                            subject="Monthly newsletter")
-    assert not gmail.is_primary_inbound(noreply_update)
+    assert not mail.is_primary_inbound(noreply_update)
     # ...but the same shape marked Important, or with high-stakes wording, is kept.
-    assert gmail.is_primary_inbound({**noreply_update, "labelIds": ["INBOX", "CATEGORY_UPDATES", "IMPORTANT"]})
-    assert gmail.is_primary_inbound({**noreply_update, "subject": "FINAL NOTICE: past due balance"})
-    assert gmail.is_primary_inbound({**noreply_update, "subject": "Your appointment has been rescheduled"})
+    assert mail.is_primary_inbound({**noreply_update, "labelIds": ["INBOX", "CATEGORY_UPDATES", "IMPORTANT"]})
+    assert mail.is_primary_inbound({**noreply_update, "subject": "FINAL NOTICE: past due balance"})
+    assert mail.is_primary_inbound({**noreply_update, "subject": "Your appointment has been rescheduled"})
     # Starred always survives.
-    assert gmail.is_primary_inbound(_mail(["INBOX", "CATEGORY_PROMOTIONS", "STARRED"]))
+    assert mail.is_primary_inbound(_mail(["INBOX", "CATEGORY_PROMOTIONS", "STARRED"]))
 
 
 # ------------------------------------------- reading in place, and watching

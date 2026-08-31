@@ -265,7 +265,7 @@ struct ClosedFooter: View {
             onTap?()
         } label: {
             HStack {
-                Text("Tied off this week (\(count))")
+                Text("Closed this week (\(count))")
                     .font(Theme.secondary)
                     .foregroundStyle(Theme.inkSoft)
                 Spacer()

@@ -253,7 +253,7 @@ struct ThreadDetailView: View {
         .toolbar {
             if let thread = detail?.thread, !thread.isResolved {
                 ToolbarItem(placement: .topBarTrailing) {
-                    Button("Tie off") { resolve(thread) }
+                    Button("Close") { resolve(thread) }
                         .font(.system(size: 15, weight: .semibold))
                         .tint(Theme.brand)
                 }

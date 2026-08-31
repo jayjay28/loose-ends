@@ -42,7 +42,7 @@ MAX_ITERATIONS = 5
 #   "What appointments did I have"   -> "I don't have access to historical
 #                                        calendar data"
 #
-# Boooooby Carter, Nia Coleman and fourteen past calendar events are all in
+# Robbbbie Carter, Nia Coleman and fourteen past calendar events are all in
 # the database. The loop asserted absence without looking, which for a product
 # whose thesis is "the system knows your world" is the worst answer available —
 # worse than saying nothing.

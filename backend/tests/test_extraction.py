@@ -13,13 +13,13 @@ from lifeline.models import ITEM_TYPES
 
 def setup_people():
     make_conversation()
-    make_person("maya", "Maya", "spouse")
+    make_person("tess", "Tess", "spouse")
 
 
 # ------------------------------------------------------------ classifier
 def test_taxonomy_examples_from_the_spec():
     batch = [
-        {"id": "1", "source": "imessage", "person": "Maya", "timestamp": NOW.isoformat(), "text": "I want that bag"},
+        {"id": "1", "source": "imessage", "person": "Tess", "timestamp": NOW.isoformat(), "text": "I want that bag"},
         {"id": "2", "source": "imessage", "person": "Mom", "timestamp": NOW.isoformat(), "text": "Grandma's 80th is in 3 weeks"},
         {"id": "3", "source": "imessage", "person": "Sara", "timestamp": NOW.isoformat(), "text": "I'll get the hoop for his birthday"},
         {"id": "4", "source": "imessage", "person": "Mom", "timestamp": NOW.isoformat(), "text": "Did you look at that paper I sent?"},
@@ -36,9 +36,9 @@ def test_taxonomy_examples_from_the_spec():
 
 def test_chatter_yields_nothing():
     batch = [
-        {"id": "1", "source": "imessage", "person": "Maya", "timestamp": NOW.isoformat(), "text": "ha, noted"},
-        {"id": "2", "source": "imessage", "person": "Maya", "timestamp": NOW.isoformat(), "text": "ok"},
-        {"id": "3", "source": "imessage", "person": "Maya", "timestamp": NOW.isoformat(), "text": "👍"},
+        {"id": "1", "source": "imessage", "person": "Tess", "timestamp": NOW.isoformat(), "text": "ha, noted"},
+        {"id": "2", "source": "imessage", "person": "Tess", "timestamp": NOW.isoformat(), "text": "ok"},
+        {"id": "3", "source": "imessage", "person": "Tess", "timestamp": NOW.isoformat(), "text": "👍"},
     ]
     assert heuristic.classify_batch(batch)["items"] == []
 
@@ -47,7 +47,7 @@ def test_automated_mail_is_not_an_item():
     batch = [
         {
             "id": "1",
-            "source": "gmail",
+            "source": "mail",
             "person": "Fillmore Hardware",
             "timestamp": NOW.isoformat(),
             "text": "20% off all power tools this weekend — please visit us",
@@ -69,7 +69,7 @@ def test_flexible_language_lowers_confidence():
 
 def test_replies_can_be_disabled():
     result = heuristic.classify_batch(
-        [{"id": "1", "source": "imessage", "person": "Maya", "timestamp": NOW.isoformat(), "text": "can you call the vet"}],
+        [{"id": "1", "source": "imessage", "person": "Tess", "timestamp": NOW.isoformat(), "text": "can you call the vet"}],
         draft_replies=False,
     )
     assert result["items"][0]["suggested_reply"] is None
@@ -147,7 +147,7 @@ def test_end_to_end_on_the_sample_corpus(sample_dir):
     load_sample_corpus(sample_dir)
     items = pipeline.run()
     assert len(items) >= 15
-    assert {i.source for i in items} == {"imessage", "whatsapp", "gmail"}
+    assert {i.source for i in items} == {"imessage", "whatsapp", "mail"}
     assert all(i.type in ITEM_TYPES for i in items)
     # The spec's worked examples must survive the whole pipeline.
     actions = " | ".join(i.suggested_action.lower() for i in items)
@@ -166,8 +166,8 @@ def test_one_malformed_item_costs_one_item_never_the_batch(monkeypatch):
     from lifeline.extraction import pipeline, providers
 
     setup_people()
-    m1 = make_message("can you pay the water bill", person_id="maya")
-    m2 = make_message("can you call the vet", person_id="maya")
+    m1 = make_message("can you pay the water bill", person_id="tess")
+    m2 = make_message("can you call the vet", person_id="tess")
 
     monkeypatch.setattr(providers, "run", lambda fn, kind=None, **kw: {
         "items": [
@@ -194,7 +194,7 @@ def test_a_missing_confidence_is_not_certainty(monkeypatch):
     from lifeline.extraction import pipeline, providers
 
     setup_people()
-    m = make_message("hmm maybe pajamas?", person_id="maya")
+    m = make_message("hmm maybe pajamas?", person_id="tess")
     monkeypatch.setattr(providers, "run", lambda fn, kind=None, **kw: {
         "items": [{"message_id": m.id, "type": "purchase",
                    "entities": {}, "suggested_action": "Buy pajamas"}],
@@ -228,7 +228,7 @@ def test_a_heuristic_batch_stays_open_for_the_model(monkeypatch):
     from lifeline.extraction import pipeline, providers
 
     setup_people()
-    subtle = make_message("we still owe the sitter for last weekend", person_id="maya")
+    subtle = make_message("we still owe the sitter for last weekend", person_id="tess")
 
     # Providers configured, but the chain returns None (budget/failure).
     monkeypatch.setattr(providers, "run", lambda fn, kind=None, **kw: None)
@@ -256,7 +256,7 @@ def test_with_no_provider_at_all_the_rules_are_the_reader(monkeypatch):
     from lifeline.extraction import pipeline, providers
 
     setup_people()
-    make_message("can you send the file, deadline is today", person_id="maya")
+    make_message("can you send the file, deadline is today", person_id="tess")
     monkeypatch.setattr(providers, "run", lambda fn, kind=None, **kw: None)
     monkeypatch.setattr(providers, "available", lambda: [])
 

@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Loose Ends — the open loops in your head, tied off</title>
+<title>Loose Ends — the open loops in your head, closed</title>
 <meta name="description" content="Loose Ends reads your own mail and messages on your own Mac, finds the threads you dropped, and hands them back to your phone. There is no Loose Ends cloud.">
 <style>
   :root {
@@ -71,29 +71,29 @@
   <header>
     <div class="knot" role="img" aria-label="knot">🪢</div>
     <h1>Loose Ends</h1>
-    <p class="lede">The open loops in your head — noticed in your own mail and messages, worked in the background, tied off.</p>
+    <p class="lede">The open loops in your head — noticed in your own mail and messages, worked in the background, and closed.</p>
     <p class="quiet">Everything stays on a computer you own. There is no Loose Ends cloud.</p>
   </header>
 
   <main>
     <h2>What it does</h2>
-    <p>Your conversations are full of things you said you'd do: the reply you never sent, the thing you promised to buy, the plan that stalled. Loose Ends reads iMessage, Gmail, and your calendar <strong>on your own Mac</strong>, finds those threads, works them while you live your life — comparing prices, drafting replies, watching for the mail that closes a loop — and hands them back to your phone with receipts.</p>
+    <p>Your conversations are full of things you said you'd do: the reply you never sent, the thing you promised to buy, the plan that stalled. Loose Ends reads iMessage, your mail, and your calendar <strong>on your own Mac</strong>, finds those threads, works them while you live your life — comparing prices, drafting replies, watching for the mail that closes a loop — and hands them back to your phone with receipts.</p>
 
     <div class="buzz">
       <p><strong>Your phone only ever buzzes for three things:</strong> an answer on an end you added, a deadline inside a day, a drafted move ready to send. Everything else waits quietly.</p>
     </div>
 
     <h2>How it's built</h2>
-    <p>The engine runs on your Mac — your messages, your database, your own Anthropic API key. The iPhone app is a pure client that pairs with your engine over your own network. The one hosted piece is a push relay that is <strong>content-free by construction</strong>: its API has no title or body field, so it can only ever say "wake up, ask your engine." Google access happens in your own one-person Google Cloud project — no shared servers, no third party in the read path.</p>
+    <p>The engine runs on your Mac — your messages, your database, your own Anthropic API key. The iPhone app is a pure client that pairs with your engine over your own network. The one hosted piece is a push relay that is <strong>content-free by construction</strong>: its API has no title or body field, so it can only ever say "wake up, ask your engine." Your mail is read from Apple Mail on that same Mac, behind the one permission macOS already asks for — so there is no cloud project, no consent screen, and no third party anywhere in the read path.</p>
 
     <h2>Install</h2>
-    <p>You'll need a Mac that stays on, an iPhone, and about ten minutes — two of them yours. Full prerequisites and the honest edges are in the <a href="https://github.com/jayjay28/loose-ends#readme">README</a>.</p>
+    <p>You'll need a Mac that stays on, an iPhone, and about five minutes. Full prerequisites and the honest edges are in the <a href="https://github.com/jayjay28/loose-ends#readme">README</a>.</p>
     <div class="cmd">curl -fsSL https://clyon.dev/install | sh</div>
     <p class="cmdnote">Clones the <a href="https://github.com/jayjay28/loose-ends">source</a>, installs the engine, and opens the setup wizard in your browser. The wizard walks everything else — and ends with a QR code your phone scans.</p>
 
     <ol class="steps">
       <li><b>The engine installs itself</b> — a launchd job on your Mac, checked by actually running.</li>
-      <li><b>The wizard does the setup</b> — your private Google project, Messages access, your Claude key. It advances itself and verifies by doing, not asking.</li>
+      <li><b>The wizard does the setup</b> — one permission for Messages and Mail, then your Claude key. It advances itself and verifies by doing, not asking.</li>
       <li><b>Scan the QR</b> — one photo pairs your phone and sets every address the engine answers on.</li>
     </ol>
 

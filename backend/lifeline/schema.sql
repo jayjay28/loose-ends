@@ -44,7 +44,7 @@ CREATE INDEX IF NOT EXISTS idx_messages_conversation   ON messages(conversation_
 
 -- ------------------------------------------------------- calendar events
 CREATE TABLE IF NOT EXISTS calendar_events (
-    id              TEXT PRIMARY KEY,          -- google event id
+    id              TEXT PRIMARY KEY,          -- the calendar's own event id
     calendar_id     TEXT NOT NULL,
     summary         TEXT NOT NULL,
     description     TEXT NOT NULL DEFAULT '',
@@ -270,16 +270,6 @@ CREATE TABLE IF NOT EXISTS sync_state (
     key         TEXT PRIMARY KEY,      -- gmail:history_id, calendar:sync_token, ...
     value       TEXT NOT NULL,
     updated_at  TEXT NOT NULL
-);
-
--- ----------------------------------------------------- oauth credentials
-CREATE TABLE IF NOT EXISTS oauth_tokens (
-    provider        TEXT PRIMARY KEY,  -- google
-    access_token    TEXT,
-    refresh_token   TEXT,
-    token_expiry    TEXT,
-    scopes          TEXT NOT NULL DEFAULT '[]',
-    updated_at      TEXT NOT NULL
 );
 
 -- --------------------------------------------------------- notifications

@@ -1,7 +1,7 @@
 # Loose Ends
 
 Your conversations are full of things you said you'd do. Loose Ends reads
-them — iMessage, Gmail, Google Calendar — finds the threads you dropped, and
+them — iMessage, Mail, Calendar — finds the threads you dropped, and
 hands them back to you on your phone: the reply you never sent, the thing you
 promised to buy, the plan that stalled.
 
@@ -20,9 +20,10 @@ It does this without your data ever leaving your machine.
   ever tells your phone "wake up, ask your engine" — the words come from
   your Mac, never through our server.
 
-Google auth happens only on your Mac, in your own one-person Google Cloud
-project. There is no shared OAuth client, no third party in the read path,
-and nothing for anyone to subpoena but you.
+Your mail, messages and calendar are read from the copies macOS already
+keeps on your Mac, behind the one Full Disk Access grant it asks for. There
+is no OAuth client, no cloud project, no consent screen, and nothing for
+anyone to subpoena but you.
 
 ## Install the engine
 
@@ -32,9 +33,9 @@ cd loose-ends/backend && ./deploy/install.sh
 ```
 
 The installer sets up a launchd job and opens the setup wizard in your
-browser. The wizard walks the whole path — Full Disk Access for iMessage,
-your Google project, your Anthropic key — checking each step by actually
-doing it, and ends with a QR code the app scans.
+browser. The wizard walks the whole path — Full Disk Access for Messages
+and Mail, then your Anthropic key — checking each step by actually doing it,
+and ends with a QR code the app scans.
 
 ## Try it without your data
 
@@ -44,7 +45,7 @@ cd backend && python -m lifeline.cli demo
 
 Loads a fictional sample corpus (`backend/sample_data/`) and runs the full
 pipeline over it. Every name, number, and email in the fixtures and tests
-is invented — the cast (Alex Carter, Maya, Dev, Priya…) lives entirely in
+is invented — the cast (Alex Carter, Tess, Dev, Priya…) lives entirely in
 this repo.
 
 ## Develop

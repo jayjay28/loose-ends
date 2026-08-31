@@ -28,26 +28,26 @@ def _mail(text, external_id, subject="", days_ago=1.0, conversation_id="gmail:t1
 
 
 def test_a_name_finds_the_person_not_the_advertisement():
-    """The live failure: `search_messages("Lia")` returned "Term life
-    insurance, made for busy people." — 'lia' is a substring of both. FTS
+    """The live failure: `search_messages("Nora")` returned "Term life
+    insurance, made for busy people." — 'nora' is a substring of both. FTS
     matches words."""
     make_conversation("gmail:t1", source="gmail", name="school")
     _mail("Term life insurance, made for busy people.", "g-ad")
-    _mail("Please see the updated universal form and Lia's action plan attached.",
+    _mail("Please see the updated universal form and Nora's action plan attached.",
           "g-plan", subject="Re: Asthma Action Plan")
 
-    hits = tools.search_messages(query="Lia")
+    hits = tools.search_messages(query="Nora")
     assert len(hits) == 1
     assert hits[0]["message_id"] != "", "shape intact"
-    assert "Lia" in hits[0]["text"]
+    assert "Nora" in hits[0]["text"]
 
 
 def test_more_matching_words_rank_higher():
     make_conversation("gmail:t1", source="gmail", name="school")
     _mail("the preschool sent the calendar", "g-one")
-    _mail("Lia's preschool registration calendar and supply list", "g-both")
+    _mail("Nora's preschool registration calendar and supply list", "g-both")
 
-    hits = tools.search_messages(query="Lia preschool calendar")
+    hits = tools.search_messages(query="Nora preschool calendar")
     assert [h["message_id"] for h in hits][0] == \
         db.get_message_by_external_id("gmail", "g-both").id
 
@@ -105,7 +105,7 @@ def test_stored_history_is_searchable_after_the_migration():
 
 
 def test_style_payloads_no_longer_wear_the_text_column():
-    from lifeline.ingestion import gmail
+    from lifeline.ingestion import mail
 
     html = ("<html><head><style>body{color:red} .mso{mso-hide:all}</style></head>"
             "<body><!--[if mso]>conditional junk<![endif]-->"
@@ -113,7 +113,7 @@ def test_style_payloads_no_longer_wear_the_text_column():
     import base64
     payload = {"mimeType": "text/html",
                "body": {"data": base64.urlsafe_b64encode(html.encode()).decode()}}
-    text = gmail.extract_body(payload)
+    text = mail.extract_body(payload)
     assert "Back to school night is Tuesday" in text
     assert "color:red" not in text
     assert "conditional junk" not in text
