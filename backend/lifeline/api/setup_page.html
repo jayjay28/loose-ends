@@ -273,7 +273,9 @@ async function refresh() {
   setLight('l-fda', s.fda.readable ? 'done' : 'active', 2);
   document.getElementById('fda-live').textContent = s.fda.readable
     ? 'Messages readable — found your conversations'
-    : 'waiting for the grant… (this flips by actually opening the database)';
+    : (s.fda.granted_pending_restart
+       ? 'grant received — the engine is restarting to pick it up…'
+       : 'waiting for the grant… (this flips by actually opening the database)');
   setLight('l-key', s.key.present ? 'done' : 'active', 3);
   setLight('l-pair', s.pairing.devices > 0 ? 'done' : 'active', 4);
 

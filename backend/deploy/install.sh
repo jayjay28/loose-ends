@@ -98,7 +98,7 @@ else
   <array>
     <string>/bin/zsh</string>
     <string>-c</string>
-    <string>cd $BACKEND &amp;&amp; export LIFELINE_PORT=$PORT &amp;&amp; exec .venv/bin/python -m uvicorn lifeline.api.app:app --host 0.0.0.0 --port $PORT</string>
+    <string>cd $BACKEND &amp;&amp; export LIFELINE_PORT=$PORT LIFELINE_MANAGED=1 &amp;&amp; exec .venv/bin/python -m uvicorn lifeline.api.app:app --host 0.0.0.0 --port $PORT</string>
   </array>
   <key>StandardOutPath</key><string>$LOGS/$LABEL.log</string>
   <key>StandardErrorPath</key><string>$LOGS/$LABEL.err.log</string>
@@ -116,7 +116,10 @@ if [ "$DRY" = "--dry-run" ]; then
 else
   for _ in $(seq 1 30); do
     if curl -s -o /dev/null "http://localhost:$PORT/setup"; then
-      say "engine running — opening the setup wizard"
+      echo ""
+      say "✓ the engine is RUNNING — http://localhost:$PORT"
+      say "  it starts with your Mac from now on (launchd job: $LABEL)"
+      say "  opening the setup wizard: http://localhost:$PORT/setup"
       open "http://localhost:$PORT/setup"
       say "done. The wizard takes it from here."
       exit 0

@@ -22,6 +22,8 @@
 	<string>$(CURRENT_PROJECT_VERSION)</string>
 	<key>LSRequiresIPhoneOS</key>
 	<true/>
+	<key>ITSAppUsesNonExemptEncryption</key>
+	<false/>
 	<key>LifelineAPIBaseURL</key>
 	<string>https://your-mac.your-tailnet.ts.net</string>
 	<key>NSAppTransportSecurity</key>
@@ -33,12 +35,12 @@
 	<array>
 		<string>_loose-ends._tcp</string>
 	</array>
-	<key>NSLocalNetworkUsageDescription</key>
-	<string>Loose Ends finds and talks to the engine running on your own Mac over your local network. Nothing leaves your network.</string>
 	<key>NSCalendarsFullAccessUsageDescription</key>
 	<string>Loose Ends reads your upcoming events so it can surface the right things at the right time and know when you're free. Your events stay on your own server.</string>
 	<key>NSCalendarsWriteOnlyAccessUsageDescription</key>
 	<string>Loose Ends adds events you choose to your calendar. You confirm each one in the standard event editor.</string>
+	<key>NSCameraUsageDescription</key>
+	<string>The camera scans the pairing code on your Mac's setup screen — one photo instead of typing a URL.</string>
 	<key>NSLocalNetworkUsageDescription</key>
 	<string>Loose Ends connects to your server running on your computer on this Wi-Fi network.</string>
 	<key>UIBackgroundModes</key>

@@ -6,7 +6,7 @@ import Security
 /// Two items — the bearer token and the engine's URL — in a **shared access
 /// group**, because two processes need them: the app, and the notification
 /// service extension that turns a relayed knock into words. Both targets
-/// list `com.lifelinecly.app.shared` first in their entitlements, so writes
+/// list `dev.clyon.looseends.shared` first in their entitlements, so writes
 /// land there by default and no team prefix is ever hardcoded — the same
 /// project builds under a stranger's team untouched.
 ///

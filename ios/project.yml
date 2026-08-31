@@ -1,4 +1,4 @@
-name: Lifeline
+name: Loose Ends
 options:
   bundleIdPrefix: com.lifeline
   deploymentTarget:
@@ -19,9 +19,11 @@ settings:
     DEVELOPMENT_TEAM: E4AMNFD4MA
 
 targets:
-  Lifeline:
+  Loose Ends:
     type: application
     platform: iOS
+    # The folder keeps the engine-era name — like the `lifeline` Python
+    # package, it's internal. Everything a person sees says Loose Ends.
     sources:
       - path: Lifeline
     dependencies:
@@ -29,7 +31,20 @@ targets:
       - target: LoosePush
     settings:
       base:
-        PRODUCT_BUNDLE_IDENTIFIER: com.lifelinecly.app
+        # The store identity and the APNs topic. History, so nobody repeats
+        # it: com.lifelinecly.app (dev era) → com.looseendscly.app (burned —
+        # an App Store record was created and deleted under it, and Apple
+        # never frees a deleted app's bundle id) → dev.clyon.looseends.
+        # The relay's APNS_TOPIC and the engine default move with this.
+        PRODUCT_BUNDLE_IDENTIFIER: dev.clyon.looseends
+        # iPhone-only, on purpose: the product is designed for the phone in
+        # your pocket, and portrait-only iPad builds fail App Store
+        # validation (multitasking wants all four orientations). iPads run
+        # the iPhone build in compatibility mode.
+        TARGETED_DEVICE_FAMILY: "1"
+        # Keeps the Swift module `Lifeline` so `@testable import Lifeline`
+        # and every type name stay put while the product says Loose Ends.
+        PRODUCT_MODULE_NAME: Lifeline
         INFOPLIST_FILE: Lifeline/Info.plist
         MARKETING_VERSION: "1.0"
         CURRENT_PROJECT_VERSION: "1"
@@ -51,7 +66,7 @@ targets:
       - path: Lifeline/Sync/TokenStore.swift
     settings:
       base:
-        PRODUCT_BUNDLE_IDENTIFIER: com.lifelinecly.app.push
+        PRODUCT_BUNDLE_IDENTIFIER: dev.clyon.looseends.push
         # Swift 5 for this one target: UNNotificationServiceExtension's
         # completion-handler API predates Sendable, and fighting strict
         # concurrency inside an Apple callback shape buys nothing here.
@@ -71,22 +86,22 @@ targets:
           NSExtensionPointIdentifier: com.apple.usernotifications.service
           NSExtensionPrincipalClass: $(PRODUCT_MODULE_NAME).NotificationService
 
-  LifelineTests:
+  LooseEndsTests:
     type: bundle.unit-test
     platform: iOS
     sources:
-      - path: LifelineTests
+      - path: LooseEndsTests
     dependencies:
-      - target: Lifeline
+      - target: Loose Ends
     settings:
       base:
         GENERATE_INFOPLIST_FILE: YES
 
 schemes:
-  Lifeline:
+  Loose Ends:
     build:
       targets:
-        Lifeline: all
+        Loose Ends: all
     run:
       config: Debug
       # The simulator + Xcode's Main Thread Checker trip a spurious
@@ -96,4 +111,4 @@ schemes:
     test:
       config: Debug
       targets:
-        - LifelineTests
+        - LooseEndsTests

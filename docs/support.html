@@ -1,0 +1,56 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Support — Loose Ends</title>
+<style>
+  :root {
+    --paper: #faf8f4; --chip: #efeadf; --ink: #302d28; --soft: #6b6459;
+    --ghost: #b5aea1; --brand: #1f6157; --rule: #e7e2d8;
+    --serif: ui-serif, "New York", Charter, Georgia, serif;
+    --sans: -apple-system, BlinkMacSystemFont, "SF Pro Text", system-ui, sans-serif;
+    --mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, monospace;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root { --paper: #161513; --chip: #26231e; --ink: #ece7dd; --soft: #a69c8c;
+            --ghost: #736b60; --brand: #6fb3a5; --rule: #302d28; }
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--paper); color: var(--ink);
+         font-family: var(--sans); font-size: 16px; line-height: 1.65; }
+  .wrap { max-width: 640px; margin: 0 auto; padding: 64px 24px 80px; }
+  h1 { font-family: var(--serif); font-size: 34px; font-weight: 600; margin: 0 0 24px; }
+  h2 { font-family: var(--serif); font-size: 21px; font-weight: 600; margin: 36px 0 8px; }
+  p, li { color: var(--soft); }
+  strong { color: var(--ink); }
+  a { color: var(--brand); text-decoration: none; }
+  a:hover { text-decoration: underline; }
+  code { font-family: var(--mono); font-size: 14px; background: var(--chip);
+         border-radius: 6px; padding: 2px 6px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>Support</h1>
+
+  <p>Loose Ends is open source and self-hosted, and support happens in the open.</p>
+
+  <h2>Something's broken</h2>
+  <p>Open an issue on <a href="https://github.com/jayjay28/loose-ends/issues">GitHub</a>. Say what you expected, what happened, and — if the engine is involved — anything relevant from <code>~/Library/Logs/loose-ends/</code>. Please don't paste your personal data into an issue.</p>
+
+  <h2>The app can't reach the engine</h2>
+  <ul>
+    <li>Same Wi-Fi? At home, the phone finds the engine over your local network.</li>
+    <li>Away from home, both devices need to be on your tailnet (Tailscale signed in on the Mac and the phone).</li>
+    <li>The Mac must be awake — check the engine with <code>curl localhost:8000/health</code> in Terminal.</li>
+    <li>If the app answers every tap with "pair this device", mint a fresh code: <code>lifeline pair</code> on the Mac, or re-scan from the wizard at <code>localhost:8000/setup</code>.</li>
+  </ul>
+
+  <h2>Setup stalled</h2>
+  <p>The wizard at <code>localhost:8000/setup</code> is resumable — reopen it and it picks up where it left off. Every step verifies by doing, so a stuck check usually names the exact grant it's waiting for.</p>
+
+  <p style="margin-top:36px"><a href="index.html">← Loose Ends</a></p>
+</div>
+</body>
+</html>

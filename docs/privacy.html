@@ -1,0 +1,66 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Privacy — Loose Ends</title>
+<style>
+  :root {
+    --paper: #faf8f4; --chip: #efeadf; --ink: #302d28; --soft: #6b6459;
+    --ghost: #b5aea1; --brand: #1f6157; --rule: #e7e2d8;
+    --serif: ui-serif, "New York", Charter, Georgia, serif;
+    --sans: -apple-system, BlinkMacSystemFont, "SF Pro Text", system-ui, sans-serif;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root { --paper: #161513; --chip: #26231e; --ink: #ece7dd; --soft: #a69c8c;
+            --ghost: #736b60; --brand: #6fb3a5; --rule: #302d28; }
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--paper); color: var(--ink);
+         font-family: var(--sans); font-size: 16px; line-height: 1.65; }
+  .wrap { max-width: 640px; margin: 0 auto; padding: 64px 24px 80px; }
+  h1 { font-family: var(--serif); font-size: 34px; font-weight: 600; margin: 0 0 6px; }
+  .updated { font-size: 13px; color: var(--ghost); margin-bottom: 32px; }
+  h2 { font-family: var(--serif); font-size: 21px; font-weight: 600; margin: 36px 0 8px; }
+  p, li { color: var(--soft); }
+  strong { color: var(--ink); }
+  a { color: var(--brand); text-decoration: none; }
+  a:hover { text-decoration: underline; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>Privacy</h1>
+  <p class="updated">Effective August 2026</p>
+
+  <p>Loose Ends is built so that this page can be short and literally true.</p>
+
+  <h2>Your data stays on your hardware</h2>
+  <p>The Loose Ends engine runs on <strong>your own Mac</strong>. Your messages, mail, calendar, contacts, and everything derived from them live in a database on that Mac and nowhere else. We do not operate servers that store, receive, or process your content. There is no Loose Ends cloud, no analytics service, and no account with us.</p>
+
+  <h2>Who your data touches, and why</h2>
+  <ul>
+    <li><strong>Google</strong> — the engine reads your Gmail and Google Calendar using a Google Cloud project that belongs to you alone, created during setup. Your mail moves between your Mac and Google, with no one in between.</li>
+    <li><strong>Anthropic</strong> — the engine sends portions of your messages to the Claude API, under your own API key and account, to find commitments and draft moves. That relationship and its terms are between you and <a href="https://www.anthropic.com/legal/privacy">Anthropic</a>.</li>
+    <li><strong>Apple</strong> — push notifications are delivered through Apple's push service via our relay, described below.</li>
+  </ul>
+
+  <h2>The push relay carries no content</h2>
+  <p>Self-hosted engines can't sign Apple push notifications, so we run one small relay. It is <strong>content-free by construction</strong>: its API has no title or body field. Every notification it forwards says a fixed placeholder — your phone then fetches the real words directly from your own Mac. The relay keeps no database; it sees an anonymous install identifier, a device token, and nothing about you.</p>
+
+  <h2>The iPhone app</h2>
+  <p>The app talks only to your own engine, over your local network or your own tailnet. Its demo mode runs entirely on fictional data bundled with the app. The app contains no third-party SDKs, no trackers, and no advertising.</p>
+
+  <h2>What we can see</h2>
+  <p>Nothing about your content. If you open a GitHub issue or email support, we see what you choose to tell us.</p>
+
+  <h2>Deleting your data</h2>
+  <p>It's yours, on your Mac: delete the database (or run <code>lifeline purge</code>) and it's gone. Removing the app from your phone removes everything the phone held. The relay has nothing to delete.</p>
+
+  <h2>Changes</h2>
+  <p>If this policy changes, the change lands in the <a href="https://github.com/jayjay28/loose-ends">open-source repository</a> first, with history.</p>
+
+  <p style="margin-top:36px"><a href="index.html">← Loose Ends</a></p>
+</div>
+</body>
+</html>

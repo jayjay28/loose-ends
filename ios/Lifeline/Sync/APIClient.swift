@@ -96,13 +96,32 @@ actor APIClient {
             request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
         }
 
+        // §v3 ws6 — demo mode: the whole app against a crafted world. Same
+        // wire format, no network. Unstaged routes fail fast the way an
+        // unreachable engine would — every screen already survives that —
+        // and without the failover walk, which would otherwise go looking
+        // for an engine the demo is standing in for.
+        // Pairing is exempt: it's the door OUT of the demo, and it has to
+        // reach the real engine to claim a real token.
+        if DemoMode.active && path != "/pair/claim" {
+            guard let canned = await DemoEngine.shared.respond(method, path, body: request.httpBody) else {
+                throw URLError(.cannotConnectToHost)
+            }
+            do { return try decoder.decode(Response.self, from: canned) }
+            catch { throw APIError.decoding(error) }
+        }
+
         let (data, response): (Data, URLResponse)
         do {
             (data, response) = try await session.data(for: request)
-        } catch let error as URLError where Self.isDoorProblem(error) {
+        } catch let error as URLError where Self.isDoorProblem(error) && path != "/pair/claim" {
             // §v3 ws4 — the door didn't answer; the request never reached the
             // engine, so retrying elsewhere is safe for any verb. One walk of
             // the list, one retry, and the found door sticks for next time.
+            // Except a claim: a pairing code belongs to exactly one engine,
+            // and "helpfully" replaying it at a different live engine turns
+            // an honest can't-reach into a lying "code expired" (field
+            // report, 2026-08-31).
             guard let door = await EngineLocator.shared.firstHealthy(excluding: baseURL) else {
                 throw error
             }
@@ -175,6 +194,8 @@ actor APIClient {
         let response: Response = try await send(
             "POST", "/pair/claim", body: Body(code: code, deviceName: deviceName))
         TokenStore.save(response.token)
+        // §v3 ws6 — a real token ends the demo; the crafted world steps aside.
+        DemoMode.leave()
         // §v3 ws4 — the moment the phone earns its key it learns every door.
         if let urls = response.urls {
             await EngineLocator.shared.remember(urls: urls)

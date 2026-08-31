@@ -1,0 +1,38 @@
+#!/bin/sh
+# Loose Ends — public bootstrap (§v3 workstream 7).
+#
+#   curl -fsSL https://clyon.dev/install | sh
+#
+# This does exactly two things: put the source on your Mac, then hand off to
+# the real installer that ships inside it (backend/deploy/install.sh — the
+# idempotent one that sets up the launchd job and opens the setup wizard).
+# Everything interesting is in the repo where you can read it first:
+# https://github.com/jayjay28/loose-ends
+set -eu
+
+REPO="https://github.com/jayjay28/loose-ends.git"
+DEST="${LOOSE_ENDS_HOME:-$HOME/loose-ends}"
+
+say()  { printf '\033[1;32m▸\033[0m %s\n' "$*"; }
+fail() { printf '\033[1;31m!\033[0m %s\n' "$*" >&2; exit 1; }
+
+[ "$(uname -s)" = "Darwin" ] || fail "the Loose Ends engine runs on macOS — this doesn't look like a Mac."
+
+# git ships with the Xcode Command Line Tools; asking for it by name gives
+# macOS the chance to offer the install dialog rather than us reimplementing it.
+if ! command -v git >/dev/null 2>&1; then
+  say "git is needed first — macOS will offer to install the Command Line Tools."
+  xcode-select --install 2>/dev/null || true
+  fail "run this command again once the tools have finished installing."
+fi
+
+if [ -d "$DEST/.git" ]; then
+  say "updating the source in $DEST"
+  git -C "$DEST" pull --ff-only || fail "couldn't update $DEST — resolve what's there, or set LOOSE_ENDS_HOME elsewhere."
+else
+  say "cloning into $DEST"
+  git clone --depth 1 "$REPO" "$DEST"
+fi
+
+say "handing off to the installer"
+exec /bin/bash "$DEST/backend/deploy/install.sh"

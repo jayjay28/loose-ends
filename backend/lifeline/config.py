@@ -107,8 +107,8 @@ class Config:
     apns_team_id: str = field(default_factory=lambda: os.environ.get("APNS_TEAM_ID", ""))
     # The topic is the *bundle id*, and it has to match exactly — Apple rejects
     # a mismatch with a 400 that says nothing about which field was wrong. The
-    # old default said com.lifeline.app; the app ships as com.lifelinecly.app.
-    apns_topic: str = field(default_factory=lambda: os.environ.get("APNS_TOPIC", "com.lifelinecly.app"))
+    # old default said com.lifeline.app; the app ships as dev.clyon.looseends.
+    apns_topic: str = field(default_factory=lambda: os.environ.get("APNS_TOPIC", "dev.clyon.looseends"))
     apns_sandbox: bool = field(default_factory=lambda: _env_bool("APNS_SANDBOX", True))
 
     # --- Behaviour knobs ---------------------------------------------------

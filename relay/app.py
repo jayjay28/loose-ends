@@ -20,7 +20,7 @@ live in memory and reset on restart, which bounds abuse without inventing
 state to manage.
 
 Run: uvicorn app:app · Env: RELAY_SIGNING_KEY, APNS_KEY_PATH, APNS_KEY_ID,
-APNS_TEAM_ID, APNS_TOPIC (default com.lifelinecly.app), APNS_SANDBOX=0|1.
+APNS_TEAM_ID, APNS_TOPIC (default dev.clyon.looseends), APNS_SANDBOX=0|1.
 """
 from __future__ import annotations
 
@@ -116,7 +116,7 @@ def _apns_send(tokens: List[str], payload: dict, priority: str,
     host = SANDBOX_HOST if os.environ.get("APNS_SANDBOX", "0") == "1" else PRODUCTION_HOST
     headers = {
         "authorization": f"bearer {_provider_token()}",
-        "apns-topic": os.environ.get("APNS_TOPIC", "com.lifelinecly.app"),
+        "apns-topic": os.environ.get("APNS_TOPIC", "dev.clyon.looseends"),
         "apns-push-type": "alert",
         "apns-priority": priority,
     }

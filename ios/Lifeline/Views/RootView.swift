@@ -11,8 +11,22 @@ import SwiftUI
 /// still render one on its own. It comes out once nothing needs it.
 struct RootView: View {
     @State private var router = PushRouter.shared
+    /// §v3 ws6 — the baton pass runs exactly once: a phone with no token and
+    /// no demo has never met an engine, and the stack would be an empty room
+    /// with no explanation. Pairing or entering the demo ends it; a later
+    /// 401 is the PairSheet's job, not onboarding's.
+    @State private var onboarding = TokenStore.token == nil && !DemoMode.active
 
     var body: some View {
+        if onboarding {
+            OnboardingView { onboarding = false }
+                .tint(Color("AccentColor"))
+        } else {
+            stack
+        }
+    }
+
+    private var stack: some View {
         ThreadsView()
             .tint(Color("AccentColor"))
             // A notification tap covers the stack rather than navigating into

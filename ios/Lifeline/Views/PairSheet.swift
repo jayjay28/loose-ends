@@ -96,6 +96,9 @@ struct PairSheet: View {
                                                deviceName: UIDevice.current.name)
                 claiming = false
                 onPaired()
+            } catch is URLError {
+                claiming = false
+                self.error = "Couldn't reach the engine — this phone is trying \(APIClient.defaultBaseURL.host ?? "an unknown host"). Same Wi-Fi as the Mac? Scanning the wizard's QR sets the address."
             } catch {
                 claiming = false
                 self.error = "That code didn't take — it may have expired or been used. Mint a fresh one on the Mac and try again."

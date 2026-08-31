@@ -84,16 +84,83 @@ def _fda_readable() -> bool:
         return False
 
 
+_restart_scheduled = False
+
+
+def _fda_probe() -> Dict[str, bool]:
+    """The check, twice: in this process, then from a fresh child. macOS
+    caches a TCC denial against the running process, so the grant the user
+    just flipped can be invisible to the engine until it relaunches — field
+    report #1: "I added zsh to FDA but it didn't update." The child sees the
+    new truth; readable=False with granted=True means: restart me."""
+    if _fda_readable():
+        return {"readable": True, "granted_pending_restart": False}
+    chat = Path.home() / "Library" / "Messages" / "chat.db"
+    try:
+        probe = subprocess.run(
+            ["/bin/zsh", "-c", f"head -c 16 '{chat}' >/dev/null"],
+            capture_output=True, timeout=10)
+        granted = probe.returncode == 0
+    except (subprocess.SubprocessError, OSError):
+        granted = False
+    return {"readable": False, "granted_pending_restart": granted}
+
+
+def _fda_check_and_maybe_restart() -> Dict[str, bool]:
+    """What `status()` reports for the FDA step — and the self-advance: when
+    the grant is in but this process can't see it, a managed engine restarts
+    itself rather than asking the user to notice."""
+    fda = _fda_probe()
+    if fda["granted_pending_restart"]:
+        _restart_to_adopt_grant()
+    return fda
+
+
+def _restart_to_adopt_grant() -> None:
+    """Exit so launchd brings the engine back with fresh TCC eyes. Only when
+    the installer's job manages us (LIFELINE_MANAGED=1) — exiting a dev
+    `uvicorn` would just be dying. The wizard page polls through the gap;
+    the step state machine was built resumable for exactly this shape."""
+    global _restart_scheduled
+    if _restart_scheduled or os.environ.get("LIFELINE_MANAGED") != "1":
+        return
+    _restart_scheduled = True
+    _journal("Full Disk Access granted — restarting the engine to pick it up…")
+    log.info("wizard: FDA granted but invisible to this process — restarting")
+    threading.Timer(1.5, os._exit, args=(0,)).start()
+
+
+# Where the SDK actually lands when PATH can't say: Homebrew (either
+# architecture) and the interactive installer's default homes. Under launchd
+# the job's PATH is the bare system one, so `shutil.which` alone kept telling
+# people to install what they had already installed (field report #2).
+_GCLOUD_HOMES = (
+    "/opt/homebrew/bin/gcloud",
+    "/opt/homebrew/share/google-cloud-sdk/bin/gcloud",
+    "/usr/local/bin/gcloud",
+    "/usr/local/share/google-cloud-sdk/bin/gcloud",
+    str(Path.home() / "google-cloud-sdk" / "bin" / "gcloud"),
+    str(Path.home() / "Downloads" / "google-cloud-sdk" / "bin" / "gcloud"),
+)
+
+
 def _gcloud() -> Optional[str]:
-    return shutil.which("gcloud")
+    found = shutil.which("gcloud")
+    if found:
+        return found
+    for candidate in _GCLOUD_HOMES:
+        if os.access(candidate, os.X_OK):
+            return candidate
+    return None
 
 
 def _gcloud_account() -> Optional[str]:
-    if not _gcloud():
+    binary = _gcloud()
+    if not binary:
         return None
     try:
         out = subprocess.run(
-            ["gcloud", "auth", "list", "--filter=status:ACTIVE",
+            [binary, "auth", "list", "--filter=status:ACTIVE",
              "--format=value(account)"],
             capture_output=True, text=True, timeout=15)
         account = out.stdout.strip().splitlines()
@@ -131,7 +198,7 @@ def status() -> Dict[str, Any]:
             "client_ready": client_ready,
             "connected": connected,
         },
-        "fda": {"readable": _fda_readable()},
+        "fda": _fda_check_and_maybe_restart(),
         "key": {"present": bool(cfg.anthropic_api_key)},
         "pairing": {
             "devices": len(db.list_devices()),
@@ -162,13 +229,14 @@ def start_google_automation() -> Dict[str, Any]:
 
     def work() -> None:
         try:
-            if not _gcloud():
+            gcloud = _gcloud()
+            if not gcloud:
                 raise RuntimeError(
                     "gcloud isn't installed — run: brew install google-cloud-sdk")
 
             if not _gcloud_account():
                 _journal("Opening the Google sign-in tab — finish it there…")
-                result = _run(["gcloud", "auth", "login", "--quiet"], timeout=600)
+                result = _run([gcloud, "auth", "login", "--quiet"], timeout=600)
                 if result.returncode != 0:
                     raise RuntimeError(f"sign-in failed: {result.stderr[-300:]}")
             _journal(f"Signed into Google as {_gcloud_account()}")
@@ -177,7 +245,7 @@ def start_google_automation() -> Dict[str, Any]:
             if not project:
                 project = f"loose-ends-{secrets.token_hex(3)}"
                 _journal(f"Creating your own private project ({project})…")
-                result = _run(["gcloud", "projects", "create", project,
+                result = _run([gcloud, "projects", "create", project,
                                "--name=Loose Ends"])
                 if result.returncode != 0:
                     raise RuntimeError(f"project creation failed: {result.stderr[-300:]}")
@@ -186,7 +254,7 @@ def start_google_automation() -> Dict[str, Any]:
 
             _journal("Switching on Gmail access…")
             _journal("Switching on Calendar access…")
-            result = _run(["gcloud", "services", "enable",
+            result = _run([gcloud, "services", "enable",
                            "gmail.googleapis.com", "calendar-json.googleapis.com",
                            f"--project={project}"], timeout=300)
             if result.returncode != 0:

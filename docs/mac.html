@@ -1,0 +1,44 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Install on your Mac — Loose Ends</title>
+<style>
+  :root {
+    --paper: #faf8f4; --chip: #efeadf; --ink: #302d28; --soft: #6b6459;
+    --ghost: #b5aea1; --brand: #1f6157;
+    --serif: ui-serif, "New York", Charter, Georgia, serif;
+    --sans: -apple-system, BlinkMacSystemFont, "SF Pro Text", system-ui, sans-serif;
+    --mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, monospace;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root { --paper: #161513; --chip: #26231e; --ink: #ece7dd; --soft: #a69c8c;
+            --ghost: #736b60; --brand: #6fb3a5; }
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--paper); color: var(--ink);
+         font-family: var(--sans); font-size: 16px; line-height: 1.65; }
+  .wrap { max-width: 640px; margin: 0 auto; padding: 64px 24px 80px; }
+  h1 { font-family: var(--serif); font-size: 34px; font-weight: 600; margin: 0 0 16px; }
+  p { color: var(--soft); }
+  strong { color: var(--ink); }
+  a { color: var(--brand); text-decoration: none; }
+  a:hover { text-decoration: underline; }
+  .cmd { font-family: var(--mono); font-size: 14px; color: var(--ink);
+         background: var(--chip); border-radius: 10px; padding: 14px 16px;
+         overflow-x: auto; white-space: nowrap; margin: 16px 0 8px; }
+  .note { font-size: 13px; color: var(--ghost); }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>Install on your Mac</h1>
+  <p>Open <strong>Terminal</strong> (⌘-space, type "Terminal"), paste this line, and press return:</p>
+  <div class="cmd">curl -fsSL https://clyon.dev/install | sh</div>
+  <p class="note">It clones the <a href="https://github.com/jayjay28/loose-ends">open source</a>, runs the installer inside it, and opens the setup wizard in your browser. The wizard takes it from there — about ten minutes, two of them yours.</p>
+  <p>A signed, double-clickable installer is coming; until then, the Terminal line is the way in.</p>
+  <p style="margin-top:36px"><a href="index.html">← Loose Ends</a></p>
+</div>
+</body>
+</html>

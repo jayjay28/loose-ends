@@ -13,7 +13,7 @@ so there is no database. Revocation = RELAY_DENYLIST (comma-separated ids).
 - RELAY_SIGNING_KEY   long random string; rotating it invalidates every install
 - APNS_KEY_PATH       the .p8 (mount as a secret)
 - APNS_KEY_ID, APNS_TEAM_ID
-- APNS_TOPIC          default com.lifelinecly.app
+- APNS_TOPIC          default dev.clyon.looseends
 - APNS_SANDBOX        1 for development builds
 - RELAY_DENYLIST      optional
 

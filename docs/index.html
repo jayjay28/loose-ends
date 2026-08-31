@@ -1,0 +1,114 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Loose Ends — the open loops in your head, tied off</title>
+<meta name="description" content="Loose Ends reads your own mail and messages on your own Mac, finds the threads you dropped, and hands them back to your phone. There is no Loose Ends cloud.">
+<style>
+  :root {
+    --paper: #faf8f4; --card: #ffffff; --chip: #efeadf;
+    --ink: #302d28; --soft: #6b6459; --ghost: #b5aea1;
+    --brand: #1f6157; --brand-soft: rgba(31,97,87,.09);
+    --rule: #e7e2d8;
+    --serif: ui-serif, "New York", Charter, Georgia, serif;
+    --sans: -apple-system, BlinkMacSystemFont, "SF Pro Text", system-ui, sans-serif;
+    --mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, monospace;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --paper: #161513; --card: #1e1c19; --chip: #26231e;
+      --ink: #ece7dd; --soft: #a69c8c; --ghost: #736b60;
+      --brand: #6fb3a5; --brand-soft: rgba(111,179,165,.12);
+      --rule: #302d28;
+    }
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: var(--paper); color: var(--ink);
+    font-family: var(--sans); font-size: 16px; line-height: 1.65;
+  }
+  .wrap { max-width: 640px; margin: 0 auto; padding: 0 24px 80px; }
+
+  header { padding: 96px 0 24px; text-align: center; }
+  .knot { font-size: 52px; line-height: 1; }
+  h1 { font-family: var(--serif); font-size: 44px; font-weight: 600; letter-spacing: -0.01em; margin: 14px 0 12px; }
+  .lede { font-size: 18px; color: var(--soft); margin: 0 auto; max-width: 34em; }
+  .quiet { font-size: 13.5px; color: var(--ghost); margin-top: 18px; }
+
+  h2 { font-family: var(--serif); font-size: 24px; font-weight: 600; margin: 56px 0 10px; }
+  p { color: var(--soft); margin: 0 0 14px; }
+  strong { color: var(--ink); font-weight: 600; }
+
+  .cmd {
+    font-family: var(--mono); font-size: 14px; color: var(--ink);
+    background: var(--chip); border-radius: 10px; padding: 14px 16px;
+    overflow-x: auto; white-space: nowrap; margin: 16px 0 8px;
+  }
+  .cmdnote { font-size: 13px; color: var(--ghost); margin-bottom: 0; }
+
+  ol.steps { margin: 18px 0 0; padding: 0 0 0 1.2em; color: var(--soft); }
+  ol.steps li { margin-bottom: 12px; padding-left: 6px; }
+  ol.steps b { color: var(--ink); font-weight: 600; }
+
+  .buzz {
+    border-left: 3px solid var(--brand); background: var(--brand-soft);
+    border-radius: 0 10px 10px 0; padding: 14px 18px; margin: 18px 0;
+  }
+  .buzz p { margin: 0; font-size: 14.5px; }
+
+  footer {
+    margin-top: 72px; padding-top: 20px; border-top: 1px solid var(--rule);
+    font-size: 13.5px; color: var(--ghost);
+  }
+  footer a, main a { color: var(--brand); text-decoration: none; }
+  footer a:hover, main a:hover { text-decoration: underline; }
+  footer .links { display: flex; gap: 18px; flex-wrap: wrap; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div class="knot" role="img" aria-label="knot">🪢</div>
+    <h1>Loose Ends</h1>
+    <p class="lede">The open loops in your head — noticed in your own mail and messages, worked in the background, tied off.</p>
+    <p class="quiet">Everything stays on a computer you own. There is no Loose Ends cloud.</p>
+  </header>
+
+  <main>
+    <h2>What it does</h2>
+    <p>Your conversations are full of things you said you'd do: the reply you never sent, the thing you promised to buy, the plan that stalled. Loose Ends reads iMessage, Gmail, and your calendar <strong>on your own Mac</strong>, finds those threads, works them while you live your life — comparing prices, drafting replies, watching for the mail that closes a loop — and hands them back to your phone with receipts.</p>
+
+    <div class="buzz">
+      <p><strong>Your phone only ever buzzes for three things:</strong> an answer on an end you added, a deadline inside a day, a drafted move ready to send. Everything else waits quietly.</p>
+    </div>
+
+    <h2>How it's built</h2>
+    <p>The engine runs on your Mac — your messages, your database, your own Anthropic API key. The iPhone app is a pure client that pairs with your engine over your own network. The one hosted piece is a push relay that is <strong>content-free by construction</strong>: its API has no title or body field, so it can only ever say "wake up, ask your engine." Google access happens in your own one-person Google Cloud project — no shared servers, no third party in the read path.</p>
+
+    <h2>Install</h2>
+    <p>You'll need a Mac that stays on, an iPhone, and about ten minutes — two of them yours. Full prerequisites and the honest edges are in the <a href="https://github.com/jayjay28/loose-ends#readme">README</a>.</p>
+    <div class="cmd">curl -fsSL https://clyon.dev/install | sh</div>
+    <p class="cmdnote">Clones the <a href="https://github.com/jayjay28/loose-ends">source</a>, installs the engine, and opens the setup wizard in your browser. The wizard walks everything else — and ends with a QR code your phone scans.</p>
+
+    <ol class="steps">
+      <li><b>The engine installs itself</b> — a launchd job on your Mac, checked by actually running.</li>
+      <li><b>The wizard does the setup</b> — your private Google project, Messages access, your Claude key. It advances itself and verifies by doing, not asking.</li>
+      <li><b>Scan the QR</b> — one photo pairs your phone and sets every address the engine answers on.</li>
+    </ol>
+
+    <h2>Try it with nothing</h2>
+    <p>The iPhone app has a full demo on a fictional world — every screen, every verb, no Mac required. Look around before you commit an afternoon.</p>
+  </main>
+
+  <footer>
+    <div class="links">
+      <a href="https://github.com/jayjay28/loose-ends">Source</a>
+      <a href="SPEC.html">The spec</a>
+      <a href="privacy.html">Privacy</a>
+      <a href="support.html">Support</a>
+    </div>
+  </footer>
+</div>
+</body>
+</html>

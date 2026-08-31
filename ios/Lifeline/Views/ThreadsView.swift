@@ -173,6 +173,7 @@ struct ThreadsView: View {
     var body: some View {
         NavigationStack(path: $navPath) {
             VStack(spacing: 0) {
+                if DemoMode.active { demoBanner }
                 header
                 askEntry
                 stack
@@ -215,10 +216,18 @@ struct ThreadsView: View {
                 // Asked for here rather than at launch: a push prompt before
                 // the user has seen a single thread is the surest way to get a
                 // permanent no, and iOS never shows it twice.
-                await PushRegistrar.shared.start(api: syncService.api)
-                // The main view owns pushing the device calendar to the backend
-                // (it moved here from the deck, which moved it from Now).
-                await CalendarSync.shared.sync(via: syncService.api)
+                // In demo, the crafted world needs nothing real: no push
+                // permission (nothing can buzz) and no calendar grant (the
+                // fixture calendar is the calendar). A permission dialog
+                // inside "look around with sample data" would break the
+                // promise the demo makes.
+                if !DemoMode.active {
+                    await PushRegistrar.shared.start(api: syncService.api)
+                    // The main view owns pushing the device calendar to the
+                    // backend (moved here from the deck, which moved it
+                    // from Now).
+                    await CalendarSync.shared.sync(via: syncService.api)
+                }
                 // §v3 ws4 — keep the engine's door list fresh so failover
                 // still works after DHCP moves the Mac.
                 await syncService.api.refreshEngineDoors()
@@ -260,6 +269,27 @@ struct ThreadsView: View {
                 .presentationCornerRadius(22)
             }
         }
+    }
+
+    /// §v3 ws6 — the demo wears its label. Tapping it opens the same claim
+    /// the 401 path uses; a real token ends the demo on its own.
+    private var demoBanner: some View {
+        Button { pairing = true } label: {
+            HStack(spacing: 6) {
+                Image(systemName: "sparkles")
+                    .font(.system(size: 11))
+                Text("Sample data — pair your Mac to make it yours")
+                    .font(.system(size: 12, weight: .medium))
+                Spacer()
+                Image(systemName: "chevron.right").font(.system(size: 10, weight: .semibold))
+            }
+            .foregroundStyle(Theme.brand)
+            .padding(.horizontal, 13).padding(.vertical, 8)
+            .background(Theme.brandSoft, in: Capsule())
+        }
+        .buttonStyle(.plain)
+        .padding(.horizontal, Theme.margin)
+        .padding(.top, 6)
     }
 
     /// The stack itself. A plain header above the list rather than a navigation
@@ -729,13 +759,31 @@ private struct NothingRunning: View {
             Image(systemName: "checkmark.circle")
                 .font(.system(size: 30, weight: .light))
                 .foregroundStyle(Theme.good)
-            Text("All tied off")
+            Text("All tied off — for now")
                 .font(Theme.serif(19, .semibold))
                 .foregroundStyle(Theme.ink)
-            Text("Nothing loose. Add one with +, or let something find you.")
+            Text("Your mail is being read as we speak. Add a loose end with +, or give it an hour and let one find you.")
                 .font(.system(size: 12))
                 .foregroundStyle(Theme.inkFaint)
                 .multilineTextAlignment(.center)
+
+            // §v3 ws6, screen 9 — the buzz contract, stated before the first
+            // buzz. The notification promise is part of onboarding, not a
+            // surprise.
+            VStack(alignment: .leading, spacing: 4) {
+                Text("WHEN YOUR PHONE WILL BUZZ")
+                    .font(.system(size: 10, weight: .semibold))
+                    .tracking(0.8)
+                    .foregroundStyle(Theme.inkFaint)
+                Text("Three things only: an answer on an end you added, a deadline inside a day, a drafted move ready to send. Everything else waits quietly here.")
+                    .font(.system(size: 12))
+                    .foregroundStyle(Theme.inkSoft)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+            .padding(14)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .background(Theme.chip.opacity(0.6), in: RoundedRectangle(cornerRadius: Theme.radius))
+            .padding(.top, 22)
         }
         .padding(.top, 90)
         .padding(.horizontal, 40)

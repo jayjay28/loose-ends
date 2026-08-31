@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import json
 import os
+import subprocess
 from pathlib import Path
 
 import pytest
@@ -128,3 +129,50 @@ def test_the_setup_page_is_loopback_only():
     assert local.get("/setup").status_code == 200
     stranger = TestClient(app, client=("192.168.1.66", 51000))
     assert stranger.get("/setup").status_code == 401, "the wizard is for the person at the Mac"
+
+
+# ------------------------------------------- field reports, 2026-08-31
+def test_gcloud_is_found_off_the_launchd_path(monkeypatch):
+    """Field report: "I installed gcloud and it keeps saying to install it."
+    Under launchd the PATH is the bare system one, so `which` can't see a
+    Homebrew or home-directory SDK — the known homes are searched too."""
+    monkeypatch.setattr(wizard.shutil, "which", lambda _: None)
+    monkeypatch.setattr(wizard.os, "access",
+                        lambda p, _: p == "/opt/homebrew/bin/gcloud")
+    assert wizard._gcloud() == "/opt/homebrew/bin/gcloud"
+
+    monkeypatch.setattr(wizard.os, "access", lambda p, _: False)
+    assert wizard._gcloud() is None
+
+
+def test_a_grant_the_process_cannot_see_reports_pending_restart(monkeypatch):
+    """Field report: "I added zsh to FDA but it didn't update." TCC caches
+    the denial against the running process; a fresh child sees the grant,
+    and the board says a restart is what's missing."""
+    monkeypatch.setattr(wizard, "_fda_readable", lambda: False)
+    monkeypatch.setattr(
+        wizard.subprocess, "run",
+        lambda *a, **k: subprocess.CompletedProcess(a, 0))
+    fda = wizard._fda_probe()
+    assert fda == {"readable": False, "granted_pending_restart": True}
+
+
+def test_no_grant_at_all_is_just_waiting(monkeypatch):
+    monkeypatch.setattr(wizard, "_fda_readable", lambda: False)
+    monkeypatch.setattr(
+        wizard.subprocess, "run",
+        lambda *a, **k: subprocess.CompletedProcess(a, 1))
+    fda = wizard._fda_probe()
+    assert fda == {"readable": False, "granted_pending_restart": False}
+
+
+def test_an_unmanaged_engine_never_exits_itself(monkeypatch):
+    """The self-restart belongs to launchd-managed installs only — exiting a
+    dev uvicorn would just be dying."""
+    monkeypatch.delenv("LIFELINE_MANAGED", raising=False)
+    monkeypatch.setattr(wizard, "_restart_scheduled", False)
+    fired = []
+    monkeypatch.setattr(wizard.threading, "Timer",
+                        lambda *a, **k: fired.append(a) or type("T", (), {"start": lambda s: None})())
+    wizard._restart_to_adopt_grant()
+    assert fired == []
