@@ -176,3 +176,23 @@ def test_an_unmanaged_engine_never_exits_itself(monkeypatch):
                         lambda *a, **k: fired.append(a) or type("T", (), {"start": lambda s: None})())
     wizard._restart_to_adopt_grant()
     assert fired == []
+
+
+def test_missing_gcloud_is_fetched_not_prescribed(home, monkeypatch):
+    """A person who doesn't like the terminal must never be told to open
+    it. When gcloud is absent, the automation installs the SDK itself."""
+    calls = []
+    monkeypatch.setattr(wizard, "_gcloud", lambda: None)
+    monkeypatch.setattr(wizard, "_install_gcloud",
+                        lambda: calls.append("installed") or None)
+    monkeypatch.setattr(wizard, "_gcloud_account", lambda: None)
+    wizard.start_google_automation()
+    for _ in range(50):
+        with wizard._google_lock:
+            if not wizard._google_run["running"]:
+                break
+        import time as _t; _t.sleep(0.05)
+    assert calls == ["installed"], "the SDK fetch ran"
+    with wizard._google_lock:
+        assert "couldn't fetch" in (wizard._google_run["error"] or ""), \
+            "a failed fetch still fails honestly, without a brew command"

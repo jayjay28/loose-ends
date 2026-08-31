@@ -154,6 +154,39 @@ def _gcloud() -> Optional[str]:
     return None
 
 
+def _install_gcloud() -> Optional[str]:
+    """Fetch Google's SDK ourselves — user-space tarball into
+    ~/google-cloud-sdk, no sudo, no Homebrew, and above all no telling a
+    person who doesn't like the terminal to open the terminal. The wizard's
+    whole reason to exist is that the machine does the machine's part."""
+    import platform
+
+    arch = "arm" if platform.machine() == "arm64" else "x86_64"
+    url = ("https://dl.google.com/dl/cloudsdk/channels/rapid/downloads/"
+           f"google-cloud-cli-darwin-{arch}.tar.gz")
+    tarball = Path.home() / ".lifeline" / "google-cloud-cli.tar.gz"
+    tarball.parent.mkdir(parents=True, exist_ok=True)
+    try:
+        fetch = subprocess.run(
+            ["curl", "-fsSL", "-o", str(tarball), url],
+            capture_output=True, text=True, timeout=900)
+        if fetch.returncode != 0:
+            log.warning("gcloud fetch failed: %s", fetch.stderr[-200:])
+            return None
+        unpack = subprocess.run(
+            ["tar", "-xzf", str(tarball), "-C", str(Path.home())],
+            capture_output=True, text=True, timeout=300)
+        if unpack.returncode != 0:
+            log.warning("gcloud unpack failed: %s", unpack.stderr[-200:])
+            return None
+    except (subprocess.SubprocessError, OSError) as exc:
+        log.warning("gcloud install failed: %s", exc)
+        return None
+    finally:
+        tarball.unlink(missing_ok=True)
+    return _gcloud()
+
+
 def _gcloud_account() -> Optional[str]:
     binary = _gcloud()
     if not binary:
@@ -231,8 +264,14 @@ def start_google_automation() -> Dict[str, Any]:
         try:
             gcloud = _gcloud()
             if not gcloud:
-                raise RuntimeError(
-                    "gcloud isn't installed — run: brew install google-cloud-sdk")
+                _journal("Google's command-line tool isn't here — fetching it "
+                         "(one-time, a few minutes)…")
+                gcloud = _install_gcloud()
+                if not gcloud:
+                    raise RuntimeError(
+                        "couldn't fetch Google's SDK — check the network and "
+                        "press Start again")
+                _journal("Google's tool installed, tucked into your home folder")
 
             if not _gcloud_account():
                 _journal("Opening the Google sign-in tab — finish it there…")
