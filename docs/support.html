@@ -47,6 +47,13 @@
     <li>If the app answers every tap with "pair this device", open <code>localhost:8000/setup</code> and tap <b>Show a pairing code</b>, or re-scan from the wizard at <code>localhost:8000/setup</code>.</li>
   </ul>
 
+  <h2>Taking it off this Mac</h2>
+  <p>Run <code>~/loose-ends/backend/deploy/uninstall.sh</code>. It stops the engine,
+     removes the launch agent so it won't come back at login, and deletes the menu
+     bar app — and it <b>keeps your data</b>, telling you where it is. Add
+     <code>--everything</code> to delete the database and your API key too, or
+     <code>--dry-run</code> to see what would go without touching anything.</p>
+
   <h2>Setup stalled</h2>
   <p>The wizard at <code>localhost:8000/setup</code> is resumable — reopen it and it picks up where it left off. Every step verifies by doing, so a stuck check usually names the exact grant it's waiting for.</p>
 

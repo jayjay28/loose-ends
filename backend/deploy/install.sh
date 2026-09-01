@@ -160,5 +160,8 @@ else
     sleep 1
   done
   warn "the engine didn't answer within 30s — check $LOGS/$LABEL.err.log"
+  warn ""
+  warn "  the job is installed and will keep retrying. To undo all of this:"
+  warn "    $BACKEND/deploy/uninstall.sh"
   exit 1
 fi

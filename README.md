@@ -42,6 +42,16 @@ and ends with a QR code the app scans.
 The engine is only half of it — the app is where loose ends come back to you.
 Get it at **https://clyon.dev/app** (TestFlight, while it waits on review).
 
+## Taking it off again
+
+```sh
+cd loose-ends/backend && ./deploy/uninstall.sh
+```
+
+Stops the engine, removes the launch agent and the menu bar app, and keeps
+your database — `--everything` deletes that too, `--dry-run` shows what would
+go. Nothing about this should be a one-way door.
+
 ## Try it without your data
 
 ```sh

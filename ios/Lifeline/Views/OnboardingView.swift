@@ -12,7 +12,7 @@ struct OnboardingView: View {
     /// the stack takes over.
     var onDone: () -> Void
 
-    private enum Step { case welcome, honestAsk, pair }
+    private enum Step: Equatable { case welcome, honestAsk, pair }
     @State private var step: Step = .welcome
 
     var body: some View {
@@ -27,7 +27,7 @@ struct OnboardingView: View {
                              .transition(.opacity)
             }
         }
-        .animation(.easeInOut(duration: 0.25), value: step == .welcome)
+        .animation(.easeInOut(duration: 0.25), value: step)
     }
 
     // MARK: - screen 1
@@ -78,7 +78,7 @@ struct OnboardingView: View {
                 .font(Theme.serif(28, .semibold))
                 .foregroundStyle(Theme.ink)
                 .padding(.bottom, 12)
-            Text("Loose Ends reads your mail and messages on your own Mac — never on our servers, because there aren't any. Install the engine there. About five minutes, and this screen will wait.")
+            Text("Loose Ends reads your mail and messages on your own Mac — never on our servers, because there aren't any. Install the engine there. About ten minutes, and this screen will wait.")
                 .font(.system(size: 15))
                 .foregroundStyle(Theme.inkSoft)
                 .fixedSize(horizontal: false, vertical: true)
@@ -92,10 +92,17 @@ struct OnboardingView: View {
                 .background(RoundedRectangle(cornerRadius: Theme.radius).fill(Theme.chip))
                 .textSelection(.enabled)
                 .padding(.bottom, 10)
-            Text("Or download the installer at **clyon.dev/mac**")
-                .font(.system(size: 13))
-                .foregroundStyle(Theme.inkFaint)
-                .padding(.bottom, 26)
+            HStack(spacing: 14) {
+                ShareLink(item: "curl -fsSL clyon.dev/install | sh") {
+                    Label("Send to my Mac", systemImage: "square.and.arrow.up")
+                        .font(.system(size: 13, weight: .medium))
+                }
+                Link(destination: URL(string: "https://clyon.dev/mac")!) {
+                    Text("clyon.dev/mac").font(.system(size: 13, weight: .medium))
+                }
+            }
+            .foregroundStyle(Theme.brand)
+            .padding(.bottom, 26)
 
             Button { withAnimation { step = .pair } } label: {
                 Text("My Mac is ready — pair it")
