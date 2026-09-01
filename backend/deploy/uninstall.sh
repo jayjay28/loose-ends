@@ -23,6 +23,7 @@ LOGS="$HOME/Library/Logs/loose-ends"
 ENV_DIR="$HOME/.lifeline"
 APP="/Applications/Loose Ends.app"
 SHIM="/usr/local/bin/lifeline"
+PKG_ID="${PKG_ID:-dev.clyon.looseends.engine}"
 DB="${LIFELINE_DB:-$BACKEND/lifeline.db}"
 
 MODE="${1:-}"
@@ -101,6 +102,22 @@ fi
 if [ -d "$LOGS" ]; then
   say "removing the logs"
   act rm -rf "$LOGS"
+fi
+
+# macOS keeps a receipt for every package ever installed, in a database that
+# has nothing to do with the files. Deleting the files does not touch it, so
+# without this the system still believes the package is installed — and the
+# next install reads as an upgrade rather than the fresh one being tested.
+# It needs root, which the rest of this script deliberately does not.
+if pkgutil --pkgs 2>/dev/null | grep -q "^$PKG_ID$"; then
+  if [ "$DRY" -eq 1 ]; then
+    echo "  would: sudo pkgutil --forget $PKG_ID"
+  elif sudo -n pkgutil --forget "$PKG_ID" >/dev/null 2>&1; then
+    say "forgot the installer receipt"
+  else
+    warn "the installer receipt is still on record (needs admin) — clear it with:"
+    warn "    sudo pkgutil --forget $PKG_ID"
+  fi
 fi
 
 # ----------------------------------------------------------------- data
