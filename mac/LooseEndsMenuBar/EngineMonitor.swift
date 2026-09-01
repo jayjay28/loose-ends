@@ -13,11 +13,21 @@ import Observation
 final class EngineMonitor {
     enum State: Equatable {
         case running(openItems: Int)
+        /// Running, reading, and thinking with rules instead of a model —
+        /// usually a key whose account ran out of credit. Items still appear,
+        /// at a fraction of the quality, which is why this needs its own
+        /// state rather than hiding inside `running`.
+        case degraded(openItems: Int, why: String)
         case paused
         case unreachable          // installed, not answering — starting, or wedged
         case notInstalled
 
-        var isRunning: Bool { if case .running = self { return true }; return false }
+        var isRunning: Bool {
+            switch self {
+            case .running, .degraded: return true
+            default: return false
+            }
+        }
     }
 
     private(set) var state: State = .unreachable
@@ -95,9 +105,15 @@ final class EngineMonitor {
             return
         }
 
-        state = .running(openItems: body["open_items"] as? Int ?? 0)
-        lastChecked = Date()
+        let open = body["open_items"] as? Int ?? 0
         lastError = body["llm_last_error"] as? String
+        if body["degraded_since"] is String {
+            state = .degraded(openItems: open,
+                              why: lastError ?? "no model is answering")
+        } else {
+            state = .running(openItems: open)
+        }
+        lastChecked = Date()
         sources = [
             ("Mail", body["mail_readable"] as? Bool ?? false),
             ("Claude key", body["claude_configured"] as? Bool ?? false),

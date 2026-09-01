@@ -12,7 +12,7 @@ struct MenuPanel: View {
         VStack(alignment: .leading, spacing: 0) {
             header
             Divider().padding(.vertical, 10)
-            if case .running = engine.state { sourceList }
+            if engine.state.isRunning { sourceList }
             actions
         }
         .padding(14)
@@ -40,7 +40,14 @@ struct MenuPanel: View {
                 .font(.system(size: 11.5))
                 .foregroundStyle(.secondary)
                 .fixedSize(horizontal: false, vertical: true)
-            if let error = engine.lastError, !error.isEmpty {
+            if case .degraded(_, let why) = engine.state {
+                Text(why)
+                    .font(.system(size: 10.5))
+                    .foregroundStyle(.orange)
+                    .lineLimit(3)
+                    .fixedSize(horizontal: false, vertical: true)
+                    .padding(.top, 3)
+            } else if let error = engine.lastError, !error.isEmpty {
                 Text(error)
                     .font(.system(size: 10.5))
                     .foregroundStyle(.red)
@@ -53,6 +60,7 @@ struct MenuPanel: View {
     private var statusColor: Color {
         switch engine.state {
         case .running:      return brand
+        case .degraded:     return .orange
         case .paused:       return .secondary
         case .unreachable:  return .orange
         case .notInstalled: return .secondary
@@ -63,6 +71,8 @@ struct MenuPanel: View {
         switch engine.state {
         case .running(let open):
             return "Reading your Mac · \(open) open loose end\(open == 1 ? "" : "s")"
+        case .degraded(let open, _):
+            return "Reading, but thinking with rules · \(open) open — quality is reduced"
         case .paused:
             return "Paused — nothing is being read"
         case .unreachable:

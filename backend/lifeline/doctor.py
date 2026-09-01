@@ -217,6 +217,26 @@ def check_gemini() -> Check:
                      "check the key and its billing at ai.studio/projects")
 
 
+def check_thinking() -> Check:
+    """Whether the engine is still reasoning, or has quietly fallen back.
+
+    `check_anthropic` asks whether the key *can* work. This asks what actually
+    happened on the last real call — the two differ exactly when a key dies
+    mid-run, which is how an account's credit ran out one afternoon while
+    every check reported healthy.
+    """
+    from .extraction import providers
+
+    since = providers.degraded_since()
+    if not since:
+        return Check("thinking", OK, "extraction is using a model")
+    detail = db.get_sync_state(providers.LAST_ERROR_KEY) or "no detail recorded"
+    return Check("thinking", FAIL,
+                 f"falling back to rules since {since[:16]} — {detail[:120]}",
+                 "items are still being made, at much lower quality; "
+                 "`lifeline doctor` names the provider that failed")
+
+
 def check_mail() -> Check:
     """Open the local Mail store and read one message.
 
@@ -481,6 +501,7 @@ CHECKS: List[Callable[[], Any]] = [
     check_database,
     check_anthropic,
     check_gemini,
+    check_thinking,
     check_mail,
     check_notifications,
     check_whatsapp,

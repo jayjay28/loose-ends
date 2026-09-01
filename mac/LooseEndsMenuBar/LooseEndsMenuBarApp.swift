@@ -25,6 +25,8 @@ struct LooseEndsMenuBarApp: App {
     private var icon: String {
         switch engine.state {
         case .running:      return "infinity"
+        // A broken loop: still working, no longer whole.
+        case .degraded:     return "exclamationmark.triangle.fill"
         case .paused:       return "infinity"          // dimmed by the panel's copy
         case .unreachable:  return "exclamationmark.triangle"
         case .notInstalled: return "questionmark.circle"

@@ -263,3 +263,68 @@ def test_with_no_provider_at_all_the_rules_are_the_reader(monkeypatch):
     created = pipeline.run(rescore=False)
     assert len(created) == 1, "the heuristic still extracts"
     assert db.unextracted_messages() == [], "and the batch is consumed"
+
+
+# --------------------------------------------- degrading, but not in silence
+def test_a_provider_failure_is_recorded_not_swallowed(monkeypatch):
+    """The engine falls back to rules when no model answers, which is right —
+    and used to happen in total silence. An account whose credit ran out kept
+    extracting at a fraction of the quality, stamped the messages processed
+    forever, and reported itself healthy."""
+    from lifeline import db
+    from lifeline.extraction import providers
+
+    class Broke:
+        __name__ = "lifeline.extraction.claude"
+
+    monkeypatch.setattr(providers, "available", lambda: [Broke()])
+    monkeypatch.setattr(providers.budget, "allow", lambda: True)
+
+    def explode(_provider):
+        raise RuntimeError("credit balance is too low")
+
+    assert providers.run(explode, "classification") is None
+    assert providers.degraded_since(), "the moment it stopped thinking is kept"
+    detail = db.get_sync_state(providers.LAST_ERROR_KEY)
+    assert "fell back to rules" in detail and "credit balance" in detail
+
+
+def test_one_success_clears_the_flag(monkeypatch):
+    """The question is whether it is reduced *now*, not whether it ever was."""
+    from lifeline import db
+    from lifeline.extraction import providers
+
+    class Fine:
+        __name__ = "lifeline.extraction.claude"
+
+    monkeypatch.setattr(providers, "available", lambda: [Fine()])
+    monkeypatch.setattr(providers.budget, "allow", lambda: True)
+    monkeypatch.setattr(providers.budget, "record", lambda: None)
+
+    db.set_sync_state(providers.DEGRADED_SINCE_KEY, "2026-08-31T12:00:00+00:00")
+    assert providers.run(lambda _p: "answered", "classification") == "answered"
+    assert providers.degraded_since() is None
+
+
+def test_no_provider_configured_is_also_degraded(monkeypatch):
+    """A key nobody ever set and a key that died are the same to the user:
+    the engine is thinking with rules."""
+    from lifeline.extraction import providers
+
+    monkeypatch.setattr(providers, "available", lambda: [])
+    assert providers.run(lambda _p: "x", "classification") is None
+    assert providers.degraded_since()
+
+
+def test_a_spent_budget_says_so_rather_than_blaming_the_key(monkeypatch):
+    from lifeline import db
+    from lifeline.extraction import providers
+
+    class Fine:
+        __name__ = "lifeline.extraction.claude"
+
+    monkeypatch.setattr(providers, "available", lambda: [Fine()])
+    monkeypatch.setattr(providers.budget, "allow", lambda: False)
+
+    assert providers.run(lambda _p: "x", "classification") is None
+    assert "spend cap" in db.get_sync_state(providers.LAST_ERROR_KEY)

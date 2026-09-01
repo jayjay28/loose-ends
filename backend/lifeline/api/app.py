@@ -189,8 +189,11 @@ def health() -> Dict[str, Any]:
         "apns_configured": cfg.has_apns,
         "open_items": len(db.open_items()),
         # A configured key that FAILS (dead credits, revoked) is worse than no
-        # key — it degrades everything silently. Surface the last loop error.
+        # key — it degrades everything silently. Surface the last error, and
+        # whether the engine is reduced to rules *right now*: extraction falls
+        # back and carries on, so nothing else would say.
         "llm_last_error": db.get_sync_state("llm:last_error") or None,
+        "degraded_since": db.get_sync_state("llm:degraded_since") or None,
         # Today's tokens per model, with a rough dollar estimate. Here because
         # "is it spending too much?" was previously only answerable from the
         # billing console, a day late — and the answer, when it finally came,
