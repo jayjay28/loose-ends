@@ -1,0 +1,59 @@
+#!/bin/bash
+# Runs as root, once, when the package is installed.
+#
+# Everything real happens in deploy/install.sh — the same script the curl
+# bootstrap uses — so there is one install path and not two that drift. This
+# only does the parts a package has to: work out who is actually using the
+# Mac, hand them the files, and run the installer as them rather than as root.
+set -uo pipefail
+
+PAYLOAD="/usr/local/loose-ends"
+LOG="/tmp/loose-ends-install.log"
+exec >>"$LOG" 2>&1
+echo "--- postinstall $(date) ---"
+
+# The installing user, not root. `stat` on the console device is the reliable
+# way to ask: SUDO_USER is unset for a GUI install, and $USER is root.
+USER_NAME="$(stat -f%Su /dev/console)"
+USER_HOME="$(dscl . -read "/Users/$USER_NAME" NFSHomeDirectory | awk '{print $2}')"
+USER_UID="$(id -u "$USER_NAME")"
+echo "installing for $USER_NAME ($USER_UID) at $USER_HOME"
+
+# The engine writes a database, a venv and logs. Root-owned files it cannot
+# write would fail later and confusingly, so hand the whole tree over now.
+chown -R "$USER_NAME" "$PAYLOAD"
+
+# The menu bar app is part of the package payload; put it where apps live.
+if [ -d "$PAYLOAD/Loose Ends.app" ]; then
+  rm -rf "/Applications/Loose Ends.app"
+  mv "$PAYLOAD/Loose Ends.app" "/Applications/Loose Ends.app"
+  chown -R "$USER_NAME" "/Applications/Loose Ends.app"
+fi
+
+# An engine already installed from somewhere else is somebody's working
+# setup — a source checkout, most likely — and a package must not quietly
+# repoint it at its own payload. Install the files, leave the running engine
+# alone, and say so.
+EXISTING="$USER_HOME/Library/LaunchAgents/com.looseends.api.plist"
+if [ -f "$EXISTING" ] && ! grep -q "$PAYLOAD" "$EXISTING"; then
+  echo "an engine is already installed from another location:"
+  grep -o "cd [^ ]*" "$EXISTING" | head -1
+  echo "leaving it alone. To switch it to this one, run:"
+  echo "  $PAYLOAD/backend/deploy/uninstall.sh && $PAYLOAD/backend/deploy/install.sh"
+  launchctl asuser "$USER_UID" sudo -u "$USER_NAME" \
+    open "http://localhost:8000/setup" 2>/dev/null || true
+  exit 0
+fi
+
+# Run the real installer as the user: it builds the venv, writes the launch
+# agent into *their* LaunchAgents, and opens the wizard in their browser.
+# `launchctl asuser` puts it in their GUI session, which is what a launch
+# agent and an `open` both require.
+launchctl asuser "$USER_UID" sudo -u "$USER_NAME" \
+  /bin/bash "$PAYLOAD/backend/deploy/install.sh"
+STATUS=$?
+echo "install.sh exited $STATUS"
+
+# The package must not report failure for a wizard the user simply hasn't
+# finished; a non-zero here would show macOS's generic "installation failed".
+exit 0
