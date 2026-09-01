@@ -78,7 +78,29 @@ rm -f "$PAYLOAD/backend"/*.db* 2>/dev/null || true
 
 # ------------------------------------------------------------------ the pkg
 say "building the package"
+
+# pkgbuild sees an .app in the payload and, unasked, marks it relocatable.
+# At install time the Installer then looks the bundle id up through Launch
+# Services and writes the app wherever a copy already exists — ignoring the
+# path declared right here. The first real install of this package proved it:
+# the app went into a stale DerivedData folder inside the repo, so
+# /Applications got nothing and postinstall found nothing to move.
+#
+# What makes it a trap rather than a bug is that it works on a clean Mac,
+# where Spotlight knows of no other copy. It only misfires for people who
+# have built the app before — which is to say, while testing it.
+pkgbuild --analyze --root "$ROOTDIR" "$BUILD/component.plist" >/dev/null
+i=0
+while /usr/libexec/PlistBuddy -c "Print :$i:BundleIsRelocatable" \
+        "$BUILD/component.plist" >/dev/null 2>&1; do
+  /usr/libexec/PlistBuddy -c "Set :$i:BundleIsRelocatable false" \
+        "$BUILD/component.plist" >/dev/null
+  i=$((i + 1))
+done
+say "pinned $i bundle(s) to their declared path"
+
 pkgbuild --root "$ROOTDIR" \
+         --component-plist "$BUILD/component.plist" \
          --scripts "$HERE/scripts" \
          --identifier "$IDENTIFIER" \
          --version "$VERSION" \
@@ -95,7 +117,13 @@ cat > "$BUILD/distribution.xml" <<XML
     <domains enable_localSystem="true"/>
     <options customize="never" require-scripts="true" hostArchitectures="arm64,x86_64"/>
     <volume-check>
-        <allowed-os-versions><os-version min="13.0"/></allowed-os-versions>
+        <!-- 14.0, matching the menu bar app's LSMinimumSystemVersion, not the
+             engine's. The engine is Python and would run on 13; the app uses
+             @Observable and would not, so a 13 install passed here and then
+             quietly had no icon — an engine reading your mail with nothing in
+             the menu bar to show it or stop it, which is the one outcome that
+             app was written to prevent. Refusing up front beats half of it. -->
+        <allowed-os-versions><os-version min="14.0"/></allowed-os-versions>
     </volume-check>
     <choices-outline><line choice="default"/></choices-outline>
     <choice id="default"><pkg-ref id="$IDENTIFIER"/></choice>

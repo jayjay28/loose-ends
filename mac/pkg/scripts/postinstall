@@ -28,6 +28,15 @@ if [ -d "$PAYLOAD/Loose Ends.app" ]; then
   rm -rf "/Applications/Loose Ends.app"
   mv "$PAYLOAD/Loose Ends.app" "/Applications/Loose Ends.app"
   chown -R "$USER_NAME" "/Applications/Loose Ends.app"
+  echo "menu bar app installed to /Applications"
+else
+  # Not a missing file so much as a misplaced one: if pkgbuild ever marks the
+  # bundle relocatable again, the Installer will have written it over some
+  # other copy on this Mac and left nothing here. Silence is how that went
+  # unnoticed the first time.
+  echo "WARNING: no app at $PAYLOAD/Loose Ends.app — nothing moved."
+  echo "  if the package contains one, it was relocated over an existing copy;"
+  echo "  check BundleIsRelocatable in mac/pkg/build-pkg.sh."
 fi
 
 # An engine already installed from somewhere else is somebody's working
