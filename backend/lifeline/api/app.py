@@ -145,7 +145,18 @@ def _item_or_404(item_id: str):
     return item
 
 
-def _confirmations() -> List[ConfirmationOut]:
+# How many confirmations ride along inside a feed response.
+#
+# /today and /sync/changes embed these so the phone can show them without a
+# second request. Embedding *all* of them meant a 36 MB response built from
+# 11,569 pending questions — a payload a phone had to pull down before it
+# could draw a list, on every refresh. Fifty of the most confident is more
+# than anyone works through in a sitting; the rest are a page away at
+# /confirmations, and the true number travels beside them.
+FEED_CONFIRMATIONS = 50
+
+
+def _confirmations(limit: Optional[int] = None) -> List[ConfirmationOut]:
     return [
         ConfirmationOut(
             signal_id=str(c["signal_id"]),
@@ -156,7 +167,7 @@ def _confirmations() -> List[ConfirmationOut]:
             reasons=list(c["reasons"]),          # type: ignore[arg-type]
             detected_at=str(c["detected_at"]),
         )
-        for c in engine.open_confirmations()
+        for c in engine.open_confirmations(limit=limit)
     ]
 
 
@@ -346,7 +357,8 @@ def today(at: Optional[str] = None) -> TodayOut:
     reference = parse_iso(at) or datetime.now(timezone.utc)
     items = scorer.ranked(reference)
     payload = presentation.build_today(items, reference)
-    payload["confirmations"] = _confirmations()
+    payload["confirmations"] = _confirmations(limit=FEED_CONFIRMATIONS)
+    payload["confirmations_total"] = db.pending_confirmations_count()
     # A lens over the ranked items: the one-tap wins, for the quick carousel.
     payload["carousel"] = [ItemOut.of(i) for i in items if is_quick_action(i)][:6]
     return TodayOut(**payload)     # type: ignore[arg-type]
@@ -1079,8 +1091,9 @@ def item_dismiss(item_id: str) -> ActionOut:
 
 # ---------------------------------------------------------- confirmations
 @app.get("/confirmations", response_model=List[ConfirmationOut])
-def confirmations() -> List[ConfirmationOut]:
-    return _confirmations()
+def confirmations(limit: int = 200) -> List[ConfirmationOut]:
+    """The queue itself. Bounded by default — see FEED_CONFIRMATIONS."""
+    return _confirmations(limit=limit)
 
 
 @app.post("/confirmations/{signal_id}/confirm", response_model=ActionOut)
@@ -1661,7 +1674,10 @@ def sync_changes(since: Optional[str] = None) -> Dict[str, Any]:
     return {
         "server_time": now_iso(),
         "items": [ItemOut.of(i).model_dump() for i in items],
-        "confirmations": [c.model_dump() for c in _confirmations()],
+        "confirmations": [
+            c.model_dump() for c in _confirmations(limit=FEED_CONFIRMATIONS)
+        ],
+        "confirmations_total": db.pending_confirmations_count(),
     }
 
 

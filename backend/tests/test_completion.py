@@ -7,7 +7,7 @@ from conftest import NOW, days_from_now, make_item, make_person, make_conversati
 
 from lifeline import db
 from lifeline.completion import engine, matcher
-from lifeline.models import CalendarEvent, Message, new_id, now_iso
+from lifeline.models import CalendarEvent, CompletionSignal, Message, new_id, now_iso
 from lifeline.ranking import learning
 
 
@@ -411,3 +411,64 @@ def test_promising_to_answer_does_not_close_it():
     _you_say("2pm", NOW + timedelta(hours=5))
     engine.scan(NOW + timedelta(hours=6))
     assert db.get_item(item.id).status == "completed"
+
+
+def test_an_item_accumulates_only_one_open_question():
+    """New evidence replaces the question; it does not stack another beside it.
+
+    The live database reached 12,510 pending confirmations across 628 items —
+    one item alone had 126 — because every new piece of matching evidence
+    minted its own signal. Answering any one of them closes the item, so the
+    rest were never anything but weight in the feed payload.
+    """
+    setup_people()
+    item = make_item(item_type="promise", text="can you call the pediatrician about Iris's rash")
+    item.entities.item = "call the pediatrician about Iris's rash"
+    db.save_item(item)
+
+    # Three separate calendar events, each fresh evidence about the same item.
+    for n in range(3):
+        db.upsert_calendar_events(
+            [CalendarEvent(
+                id=f"cal-{n}",
+                calendar_id="primary",
+                summary="Iris — Dr. Bell (pediatrics)",
+                description="Rash follow-up.",
+                start_at=days_from_now(2 + n),
+                self_response="accepted",
+            )]
+        )
+        engine.scan(NOW)
+
+    open_questions = [
+        s for s in db.pending_confirmations() if s.item_id == item.id
+    ]
+    assert len(open_questions) == 1, (
+        f"one item should carry one open question, got {len(open_questions)}"
+    )
+
+
+def test_collapse_repairs_a_database_that_already_stacked_them():
+    setup_people()
+    item = make_item(item_type="promise", text="call the pediatrician")
+    db.save_item(item)
+    for n in range(5):
+        db.save_signal(CompletionSignal(
+            id=new_id(),
+            item_id=item.id,
+            source="calendar",
+            evidence_ref=f"evidence-{n}",
+            evidence_text="Dr. Bell",
+            confidence=0.50 + n / 100,
+            reasons=["fuzzy"],
+            resolution="needs_confirmation",
+            detected_at=now_iso(),
+        ))
+    assert len(db.pending_confirmations()) == 5
+
+    retired = db.collapse_pending_confirmations()
+    assert retired == 4
+    left = db.pending_confirmations()
+    assert len(left) == 1
+    # The most confident question is the one worth asking.
+    assert left[0].confidence == 0.54

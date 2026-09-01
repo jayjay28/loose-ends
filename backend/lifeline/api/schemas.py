@@ -434,6 +434,10 @@ class TodayOut(BaseModel):
     generated_at: str
     groups: List[GroupOut]
     confirmations: List["ConfirmationOut"] = Field(default_factory=list)
+    # `confirmations` is the top slice, not the whole queue — see
+    # FEED_CONFIRMATIONS. This is how many there actually are, so a client can
+    # say "50 of 11,569" rather than implying it is showing everything.
+    confirmations_total: int = 0
     counts: Dict[str, int] = Field(default_factory=dict)
     # v1.1 — one-tap items for the quick-action carousel (a lens: these also
     # appear in `groups`).

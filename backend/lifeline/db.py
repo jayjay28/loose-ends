@@ -1505,12 +1505,90 @@ def signals_for_item(item_id: str, conn: Optional[sqlite3.Connection] = None) ->
     return [_signal_from_row(r) for r in rows]
 
 
-def pending_confirmations(conn: Optional[sqlite3.Connection] = None) -> List[CompletionSignal]:
+def pending_confirmations(
+    conn: Optional[sqlite3.Connection] = None,
+    limit: Optional[int] = None,
+) -> List[CompletionSignal]:
+    """Fuzzy matches awaiting a yes/no, most confident first.
+
+    The limit is not an optimisation. This went unbounded for months and
+    reached 11,569 rows, each of which the API expands with its whole item
+    before sending — /today became a 36 MB response that a phone had to
+    download to show a list. Nobody was ever going to answer eleven thousand
+    yes/no questions, so the tail was pure weight.
+    """
     c = conn or get_connection()
-    rows = c.execute(
-        "SELECT * FROM completion_signals WHERE resolution = 'needs_confirmation' ORDER BY confidence DESC"
-    ).fetchall()
+    sql = (
+        "SELECT * FROM completion_signals WHERE resolution = 'needs_confirmation' "
+        "ORDER BY confidence DESC"
+    )
+    if limit is not None:
+        sql += f" LIMIT {int(limit)}"
+    rows = c.execute(sql).fetchall()
     return [_signal_from_row(r) for r in rows]
+
+
+def pending_confirmations_count(conn: Optional[sqlite3.Connection] = None) -> int:
+    """How many there really are, for callers that only send the top slice."""
+    c = conn or get_connection()
+    row = c.execute(
+        "SELECT COUNT(*) FROM completion_signals WHERE resolution = 'needs_confirmation'"
+    ).fetchone()
+    return int(row[0]) if row else 0
+
+
+def pending_signal_for_item(
+    item_id: str, conn: Optional[sqlite3.Connection] = None
+) -> Optional[CompletionSignal]:
+    """The open question about this item, if one is already being asked."""
+    c = conn or get_connection()
+    row = c.execute(
+        "SELECT * FROM completion_signals "
+        "WHERE item_id = ? AND resolution = 'needs_confirmation' "
+        "ORDER BY confidence DESC LIMIT 1",
+        (item_id,),
+    ).fetchone()
+    return _signal_from_row(row) if row else None
+
+
+def supersede_signal(signal_id: str, conn: Optional[sqlite3.Connection] = None) -> None:
+    """Retire a question that a better one has replaced.
+
+    Kept rather than deleted: it is still evidence that something matched,
+    and the matcher learns from what was asked. It simply stops being asked.
+    """
+    c = conn or get_connection()
+    c.execute(
+        "UPDATE completion_signals SET resolution = 'superseded', resolved_at = ? "
+        "WHERE id = ?",
+        (now_iso(), signal_id),
+    )
+    c.commit()
+
+
+def collapse_pending_confirmations(conn: Optional[sqlite3.Connection] = None) -> int:
+    """Leave one open question per item; supersede the rest.
+
+    Repairs databases written before the one-question-per-item rule existed.
+    Returns how many were retired.
+    """
+    c = conn or get_connection()
+    cur = c.execute(
+        """
+        UPDATE completion_signals SET resolution = 'superseded', resolved_at = ?
+        WHERE resolution = 'needs_confirmation' AND id NOT IN (
+            SELECT id FROM (
+                SELECT id, ROW_NUMBER() OVER (
+                    PARTITION BY item_id ORDER BY confidence DESC, detected_at DESC
+                ) rn
+                FROM completion_signals WHERE resolution = 'needs_confirmation'
+            ) WHERE rn = 1
+        )
+        """,
+        (now_iso(),),
+    )
+    c.commit()
+    return cur.rowcount
 
 
 def get_signal(signal_id: str, conn: Optional[sqlite3.Connection] = None) -> Optional[CompletionSignal]:

@@ -222,9 +222,29 @@ def scan(reference: Optional[datetime] = None) -> Outcome:
             outcome.auto_closed.append(item)
             log.info("auto-closed %s via %s (%.2f)", item.id, match.source, match.confidence)
         else:
-            # §7 step 4 — never auto-close a fuzzy match; ask.
-            db.save_signal(signal)
-            outcome.needs_confirmation.append(signal)
+            # §7 step 4 — never auto-close a fuzzy match; ask. But ask once.
+            #
+            # The dedup above only skips evidence already seen, so every
+            # genuinely new message that matched an open item added another
+            # question about that same item. One item had accumulated 126 of
+            # them and the database 12,510 in total, against 628 items — and
+            # exactly 2 had ever been answered. The question is about the
+            # item, not the evidence: answering any one of the 126 closes it,
+            # so the other 125 were never anything but weight.
+            open_question = db.pending_signal_for_item(item.id)
+            if open_question is None:
+                db.save_signal(signal)
+                outcome.needs_confirmation.append(signal)
+            elif signal.confidence > open_question.confidence:
+                # Better evidence for the same item: swap the question rather
+                # than stack a second one beside it.
+                db.supersede_signal(open_question.id)
+                db.save_signal(signal)
+                outcome.needs_confirmation.append(signal)
+                log.debug(
+                    "replaced question for %s (%.2f → %.2f)",
+                    item.id, open_question.confidence, signal.confidence,
+                )
 
     return outcome
 
@@ -275,10 +295,15 @@ def manual_close(item_id: str) -> Optional[Item]:
     return close_item(item, by="manual")
 
 
-def open_confirmations() -> List[Dict[str, object]]:
-    """Fuzzy matches awaiting a yes/no, newest first."""
+def open_confirmations(limit: Optional[int] = None) -> List[Dict[str, object]]:
+    """Fuzzy matches awaiting a yes/no, most confident first."""
     out = []
-    for signal in db.pending_confirmations():
+    # Ask for a few more than requested: completed items are dropped below, so
+    # a bare LIMIT would sometimes return short of what the caller asked for.
+    fetch = None if limit is None else limit * 2
+    for signal in db.pending_confirmations(limit=fetch):
+        if limit is not None and len(out) >= limit:
+            break
         item = db.get_item(signal.item_id)
         if not item or item.status == "completed":
             continue
