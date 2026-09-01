@@ -37,6 +37,11 @@ browser. The wizard walks the whole path — Full Disk Access for Messages
 and Mail, then your Anthropic key — checking each step by actually doing it,
 and ends with a QR code the app scans.
 
+## The iPhone app
+
+The engine is only half of it — the app is where loose ends come back to you.
+Get it at **https://clyon.dev/app** (TestFlight, while it waits on review).
+
 ## Try it without your data
 
 ```sh

@@ -41,12 +41,16 @@ fi
 if [ "$DRY" != "--dry-run" ] && lsof -i ":$PORT" -sTCP:LISTEN >/dev/null 2>&1 \
    && ! launchctl list 2>/dev/null | grep -q "$LABEL"; then
   warn "something else is already listening on port $PORT — nothing was changed."
+  warn ""
+  warn "  see what has it:   lsof -i :$PORT"
+  warn "  or use another:    PORT=8100 $0"
   exit 1
 fi
 
 # ------------------------------------------------------------ the runtime
 # uv when it's there (fast, brings its own Python); the system python3
 # otherwise (ships with the Xcode command-line tools, 3.9+ is enough).
+say "installing the engine's dependencies — 1 to 3 minutes, and the quietest part of this"
 if command -v uv >/dev/null 2>&1; then
   say "creating the runtime with uv…"
   run uv venv --quiet --python ">=3.11" "$BACKEND/.venv" || run uv venv --quiet "$BACKEND/.venv"
@@ -109,7 +113,36 @@ PLIST
   launchctl bootstrap "gui/$(id -u)" "$PLIST"
 fi
 
+# ------------------------------------------------------------- the command
+# `lifeline doctor` and `lifeline pair` are named in the support page, in the
+# doctor's own advice, and on the pairing screen. None of them worked: there
+# was no such command anywhere on PATH.
+SHIM="/usr/local/bin/lifeline"
+if [ "$DRY" = "--dry-run" ]; then
+  echo "  would: install the lifeline command at $SHIM"
+elif [ -w "$(dirname "$SHIM")" ] 2>/dev/null || [ -w "$SHIM" ] 2>/dev/null; then
+  cat > "$SHIM" <<SHIMEOF
+#!/bin/sh
+exec "$BACKEND/.venv/bin/python" -m lifeline.cli "\$@"
+SHIMEOF
+  chmod +x "$SHIM"
+  say "the 'lifeline' command is available (try: lifeline doctor)"
+else
+  say "note: couldn't write $SHIM — run the CLI as:"
+  say "      $BACKEND/.venv/bin/python -m lifeline.cli doctor"
+fi
+
 # ------------------------------------------------------------- the handoff
+# --------------------------------------------------------- the menu bar app
+# The one thing that answers "is it running, and how do I stop it" — built,
+# signed, notarized, and until now installed by nothing.
+MENUBAR="$BACKEND/../mac/build/Loose Ends.app"
+if [ -d "$MENUBAR" ] && [ "$DRY" != "--dry-run" ]; then
+  say "installing the menu bar app"
+  rm -rf "/Applications/Loose Ends.app" 2>/dev/null || true
+  cp -R "$MENUBAR" /Applications/ 2>/dev/null && open -g "/Applications/Loose Ends.app" 2>/dev/null || true
+fi
+
 say "waiting for the engine to answer…"
 if [ "$DRY" = "--dry-run" ]; then
   echo "  would: poll http://localhost:$PORT and open the setup wizard"

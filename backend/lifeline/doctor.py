@@ -133,27 +133,42 @@ def check_database() -> Check:
 
 
 def check_anthropic() -> Check:
-    """A real call, not a truthy string.
+    """Generate one token, because that is the thing that has to work.
 
-    `count_tokens` is free and still exercises authentication, so an expired
-    key, a revoked key and a key with no credit are all distinguishable from a
-    key that is merely *present* — which is the only thing `has_claude` knows.
+    This used to call `messages.count_tokens`, which is free and unmetered —
+    so it answered 200 on a key whose account had no credit, and reported a
+    dead engine as healthy. `check_gemini` was rewritten for exactly this
+    reason; this one kept the blind spot until the onboarding audit found it.
     """
     cfg = get_config()
-    if not cfg.anthropic_api_key:
+    if not cfg.has_claude:
         return Check("anthropic", SKIP, "no ANTHROPIC_API_KEY set",
-                     "export ANTHROPIC_API_KEY in ~/.zshrc; the worker cannot run without it")
+                     "paste the key into the setup wizard at localhost:8000/setup")
     try:
-        from .extraction import claude
-        result = claude._client().messages.count_tokens(
-            model=cfg.loop_model,
-            messages=[{"role": "user", "content": "ping"}],
-        )
-        return Check("anthropic", OK,
-                     f"key works — {cfg.loop_model} reachable ({result.input_tokens} tokens)")
-    except Exception as exc:                      # noqa: BLE001 — any failure is the answer
-        return Check("anthropic", FAIL, f"key rejected: {str(exc)[:120]}",
-                     "check the key at console.anthropic.com, and that it has credit")
+        import httpx
+
+        response = httpx.post(
+            "https://api.anthropic.com/v1/messages",
+            headers={"x-api-key": cfg.anthropic_api_key,
+                     "anthropic-version": "2023-06-01"},
+            json={"model": "claude-haiku-4-5", "max_tokens": 1,
+                  "messages": [{"role": "user", "content": "hi"}]},
+            timeout=20)
+    except Exception as exc:                      # noqa: BLE001
+        return Check("anthropic", FAIL, f"unreachable: {str(exc)[:120]}")
+    if response.status_code in (200, 201):
+        return Check("anthropic", OK, "key generates")
+    body = (response.text or "").lower()
+    if "credit balance" in body or "billing" in body:
+        return Check("anthropic", FAIL, "the key works but the account has no credit",
+                     "add a payment method at console.anthropic.com/settings/billing")
+    if response.status_code == 401:
+        return Check("anthropic", FAIL, "the key was rejected",
+                     "paste a fresh key into localhost:8000/setup")
+    if response.status_code in (429, 529):
+        return Check("anthropic", WARN, "rate-limited right now, but the key authenticates")
+    return Check("anthropic", FAIL,
+                 f"{response.status_code}: {(response.text or '')[:100]}")
 
 
 def check_gemini() -> Check:

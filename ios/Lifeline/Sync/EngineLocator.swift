@@ -41,10 +41,10 @@ actor EngineLocator {
     nonisolated func candidates(excluding failed: URL? = nil) -> [URL] {
         var doors: [URL] = (UserDefaults.standard.stringArray(forKey: Self.knownURLsKey) ?? [])
             .compactMap(URL.init(string:))
-        if let raw = Bundle.main.object(forInfoDictionaryKey: "LifelineAPIBaseURL") as? String,
-           let url = URL(string: raw) {
-            doors.append(url)
-        }
+        // Nothing baked in: the only doors are the ones this phone was told
+        // about by an engine it actually paired with, plus localhost for the
+        // simulator. See `APIClient.defaultBaseURL` for what a shipped
+        // default address cost.
         doors.append(URL(string: "http://127.0.0.1:8000")!)
         var seen = Set<String>()
         return doors.filter { url in
@@ -69,18 +69,24 @@ actor EngineLocator {
         return nil
     }
 
-    /// Alive means the engine answered HTTP at all. A 401 counts — an
-    /// unpaired engine is still the right door, and the pairing sheet is the
-    /// next screen's problem, not the locator's.
+    /// Alive means *this phone's* engine answered — not merely that something
+    /// answered.
+    ///
+    /// A 401 used to count, on the reasoning that an unpaired engine is still
+    /// the right door. It isn't: any stranger's engine on the network returns
+    /// 401 too, and adopting one persists a wrong address that the next
+    /// pairing code is then sent to. When we hold a token, the door has to
+    /// accept it. Only a phone with no token at all may settle for "answers".
     private func alive(_ base: URL) async -> Bool {
         var request = URLRequest(url: base.appendingPathComponent("health"),
                                  timeoutInterval: 3)
-        if let token = TokenStore.token {
+        let token = TokenStore.token
+        if let token {
             request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
         }
         guard let (_, response) = try? await session.data(for: request),
               let http = response as? HTTPURLResponse else { return false }
-        return http.statusCode < 500
+        return token == nil ? http.statusCode < 500 : http.statusCode == 200
     }
 
     // MARK: - bonjour

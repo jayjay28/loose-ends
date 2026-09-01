@@ -173,10 +173,28 @@ def save_key(key: str) -> Dict[str, Any]:
         return {"ok": True}
     if response.status_code == 401:
         return {"ok": False, "reason": "Anthropic rejected that key"}
-    # 4xx like overloaded/model quirks still prove the key authenticates.
-    if response.status_code != 401 and response.status_code < 500:
+
+    # A key on an account with no billing authenticates perfectly and can
+    # never generate anything: Anthropic answers 400 "credit balance is too
+    # low". This step used to accept any 4xx as proof the key worked, paint
+    # itself green, and hand the user a finished setup on top of an engine
+    # that would fail every extraction in silence. A ✓ has to mean the thing
+    # it claims.
+    body = (response.text or "").lower()
+    if "credit balance" in body or "billing" in body:
+        return {"ok": False, "reason": (
+            "That key is real, but the account has no credit. Add a payment "
+            "method at console.anthropic.com/settings/billing, then paste it "
+            "again — the API has no free tier.")}
+    if response.status_code in (429, 529):
+        # Rate-limited or overloaded: the key authenticated, which is what
+        # this check is for.
         write_env({"ANTHROPIC_API_KEY": key})
         return {"ok": True}
+    if response.status_code < 500:
+        return {"ok": False, "reason": (
+            f"Anthropic refused that key ({response.status_code}). "
+            f"{(response.text or '')[:120]}")}
     return {"ok": False, "reason": f"Anthropic answered {response.status_code} — try again"}
 
 

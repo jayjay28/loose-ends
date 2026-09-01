@@ -72,10 +72,26 @@ def test_a_jid_becomes_the_same_handle_every_other_source_uses():
     assert whatsapp._jid_handle("") == ""
 
 
-def test_a_group_jid_is_recognised_and_stripped():
+def test_only_a_phone_jid_yields_a_handle():
+    """The first real store taught this: assuming the bit before the @ is a
+    phone number invented twelve people out of group ids and privacy
+    identifiers, none of whom could ever match the same human's iMessage."""
+    assert whatsapp._jid_handle("1234567890-1600000000@g.us") == "", "a room, not a person"
+    assert whatsapp._jid_handle("123456789012345@lid") == "", "an opaque id, not a number"
+    assert whatsapp._jid_handle("123@lid.status") == ""
+
+
+def test_a_group_jid_is_recognised():
     assert whatsapp._is_group("1234567890-1600000000@g.us") is True
     assert whatsapp._is_group("14155550142@s.whatsapp.net") is False
-    assert whatsapp._jid_handle("1234567890-1600000000@g.us") == "1234567890"
+
+
+def test_status_posts_are_not_conversations():
+    """Somebody's Status is broadcast to everyone holding their number — not
+    addressed to the user, and never a loose end."""
+    assert whatsapp._is_status("x@status") is True
+    assert whatsapp._is_status("x@lid.status") is True
+    assert whatsapp._is_status("14155550142@s.whatsapp.net") is False
 
 
 def test_apple_epoch_dates_become_real_timestamps():
@@ -180,6 +196,37 @@ def test_a_group_chat_is_marked_as_one(store):
     assert stored.metadata["author_label"] == "Theo"
 
 
+def test_a_group_message_is_attributed_to_its_sender_not_the_room(store):
+    """804 of the first 1,103 real messages were group messages, and the
+    group's id was being turned into the sender's phone number."""
+    make_person("theo", "Theo Brandt", handles=["4155550188"])
+    chat(store, 1, "1234567890-1600000000@g.us", "Five-a-side")
+    message(store, 10, 1, "who's in for saturday?",
+            from_jid="14155550188@s.whatsapp.net", push="Theo")
+
+    whatsapp.poll(path=store)
+    assert db.messages_since("2000-01-01", source="whatsapp")[0].person_id == "theo"
+
+
+def test_a_group_message_with_no_sender_invents_nobody(store):
+    chat(store, 1, "1234567890-1600000000@g.us", "Five-a-side")
+    message(store, 10, 1, "someone said something", from_jid="")
+
+    whatsapp.poll(path=store)
+    stored = db.messages_since("2000-01-01", source="whatsapp")[0]
+    assert stored.person_id is None, "the group id must never become a person"
+
+
+def test_status_posts_never_reach_the_store(store):
+    chat(store, 1, "status@broadcast", "Status")
+    message(store, 10, 1, "my story post", from_jid="14155550188@s.whatsapp.net")
+    chat(store, 2, "14155550142@s.whatsapp.net", "Dev Shah")
+    message(store, 11, 2, "a real message", from_jid="14155550142@s.whatsapp.net")
+
+    assert whatsapp.poll(path=store) == 1
+    assert db.messages_since("2000-01-01", source="whatsapp")[0].text == "a real message"
+
+
 def test_polling_resumes_from_the_primary_key_not_the_clock(store):
     """Core Data hands out keys in insert order, so a key cursor survives a
     message arriving with an old date — which dates do not."""
@@ -229,3 +276,38 @@ def test_empty_messages_are_skipped(store):
     conn.close()
 
     assert whatsapp.poll(path=store) == 0
+
+
+# ------------------------------------------------- identity, honestly held
+def test_an_opaque_token_is_not_a_name():
+    """ZPUSHNAME is a display name on iOS and an encoded token on the Mac.
+    The first real probe had 831 distinct tokens across 831 messages, and the
+    resolver turned one into a "person" holding 829 of them."""
+    assert whatsapp._plausible_name("CKrnvdMGIABIAZABAPABAtgCk+S59bGClgM=") == ""
+    assert whatsapp._plausible_name("Dev Shah") == "Dev Shah"
+    assert whatsapp._plausible_name("Theo") == "Theo"
+    assert whatsapp._plausible_name("x" * 80) == ""
+
+
+def test_an_unidentifiable_group_sender_is_attributed_to_nobody(store):
+    """Modern WhatsApp names group senders with an opaque @lid on purpose.
+    Nobody is the honest answer; a ghost person poisons every ranking signal
+    that counts messages from a human."""
+    chat(store, 1, "1234567890-1600000000@g.us", "Five-a-side")
+    message(store, 10, 1, "who's in for saturday?",
+            from_jid="123456789012345@lid",
+            push="CKrnvdMGIABIAZABAPABAtgCk+S59bGClgM=")
+
+    assert whatsapp.poll(path=store) == 1
+    stored = db.messages_since("2000-01-01", source="whatsapp")[0]
+    assert stored.person_id is None
+    assert stored.text == "who's in for saturday?", "the message is still kept"
+
+
+def test_a_group_sender_with_a_real_name_is_still_recognised(store):
+    make_person("theo", "Theo Brandt")
+    chat(store, 1, "1234567890-1600000000@g.us", "Five-a-side")
+    message(store, 10, 1, "I'm in", from_jid="123456789012345@lid", push="Theo Brandt")
+
+    whatsapp.poll(path=store)
+    assert db.messages_since("2000-01-01", source="whatsapp")[0].person_id == "theo"

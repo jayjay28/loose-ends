@@ -92,8 +92,8 @@
 <div class="wrap">
   <header>
     <p class="mark">Loose Ends · engine setup</p>
-    <h1>Three things, five minutes</h1>
-    <p class="lede">Everything here happens on this Mac. One permission, one key, one scan — every wait says what it's watching and moves on alone.</p>
+    <h1>Three things, about ten minutes</h1>
+    <p class="lede">Everything here happens on this Mac. One permission, one key, one scan — every wait says what it's watching and moves on alone. Most of the ten minutes is making a Claude account.</p>
   </header>
 
   <!-- 1 · Messages + Mail -->
@@ -117,10 +117,11 @@
     <div class="step-head" onclick="toggle('s-key')">
       <span class="light" id="l-key">2</span>
       <b>A Claude API key</b>
-      <span class="who you">1 min · you</span>
+      <span class="who you">5 min · you</span>
     </div>
     <div class="step-body">
-      <p>The engine reads your life with Claude, billed to your own key — create one at <b>console.anthropic.com</b> → API keys. It's stored on this Mac and nowhere else.</p>
+      <p>The engine reads your life with Claude, billed to your own key. Create one at <a href="https://console.anthropic.com/settings/keys" target="_blank"><b>console.anthropic.com/settings/keys</b></a> — it's stored on this Mac and nowhere else.</p>
+      <p><b>You'll need to add a payment method:</b> the API has no free tier, and a key without credit can't read anything. Loose Ends typically spends well under a dollar a day, and the menu bar icon shows today's total.</p>
       <div class="row">
         <input type="password" id="key-input" placeholder="sk-ant-…" autocomplete="off">
         <button onclick="saveKey()" id="key-btn">Save</button>
@@ -138,6 +139,7 @@
     </div>
     <div class="step-body">
       <p>Open Loose Ends on your phone and scan — or type the code when it asks. Codes live ten minutes and work once.</p>
+      <p>Don't have the app yet? Get it at <a href="https://clyon.dev/app" target="_blank"><b>clyon.dev/app</b></a> — then come back here.</p>
       <button onclick="mintPair()" id="pair-btn">Show a pairing code</button>
       <div class="qr-wrap" id="pair-out" style="display:none">
         <div id="pair-qr"></div>
@@ -153,7 +155,9 @@
 <script>
 
 function toggle(id) {
-  document.getElementById(id).classList.toggle('open');
+  const el = document.getElementById(id);
+  el.dataset.touched = '1';        // hand-opened: the poll stops managing it
+  el.classList.toggle('open');
 }
 function setLight(id, state, num) {
   const el = document.getElementById(id);
@@ -212,17 +216,20 @@ async function refresh() {
   const done = [s.fda.readable, s.key.present, s.pairing.devices > 0]
                .filter(Boolean).length;
   document.getElementById('foot').textContent =
-    done === 3 ? 'all three ✓ — the engine is reading your life. You can close this page.'
+    done === 3 ? 'all three ✓ — first pass starts within 5 minutes · localhost:8000/doctor says if anything is wrong'
                : done + ' of 3 done · every ✓ on this page is a receipt, not a hope';
 
-  // Open the first not-done step, once, politely.
-  if (!window.__opened) {
-    window.__opened = true;
-    const order = [['s-fda', s.fda.readable],
-                   ['s-key', s.key.present], ['s-pair', s.pairing.devices > 0]];
-    for (const [id, ok] of order) {
-      if (!ok) { document.getElementById(id).classList.add('open'); break; }
-    }
+  // Advance the accordion as steps complete. This used to latch on the very
+  // first poll and never move again, so finishing Full Disk Access left the
+  // user staring at two collapsed rows — in a wizard whose first rule is
+  // that it advances itself. A step the user opened by hand stays open.
+  const order = [['s-fda', s.fda.readable],
+                 ['s-key', s.key.present], ['s-pair', s.pairing.devices > 0]];
+  const next = order.find(([, ok]) => !ok);
+  for (const [id, ok] of order) {
+    const el = document.getElementById(id);
+    if (el.dataset.touched === '1') continue;      // they opened it themselves
+    el.classList.toggle('open', next ? id === next[0] : false);
   }
 }
 

@@ -154,6 +154,10 @@ struct ThreadsView: View {
     /// value-based `NavigationLink`s below land here.
     @State private var navPath = NavigationPath()
     @State private var router = PushRouter.shared
+    /// §v3.1 — the way back. A token that is valid for the *wrong* Mac never
+    /// 401s, so the app opened to someone else's timeline with no exit but
+    /// erasing the phone. Re-pairing has to be reachable from inside.
+    @State private var repairing = false
 
     // Haptics, carried over from the deck: a tick when a swipe arms past its
     // threshold, a distinct feel per verb when it commits.
@@ -174,6 +178,7 @@ struct ThreadsView: View {
         NavigationStack(path: $navPath) {
             VStack(spacing: 0) {
                 if DemoMode.active { demoBanner }
+                if model?.failed == true { unreachable }
                 header
                 askEntry
                 stack
@@ -216,16 +221,17 @@ struct ThreadsView: View {
                 // Asked for here rather than at launch: a push prompt before
                 // the user has seen a single thread is the surest way to get a
                 // permanent no, and iOS never shows it twice.
-                // In demo, the crafted world needs nothing real: no push
-                // permission (nothing can buzz) and no calendar grant (the
-                // fixture calendar is the calendar). A permission dialog
-                // inside "look around with sample data" would break the
-                // promise the demo makes.
-                if !DemoMode.active {
+                // §v3.1 — permission dialogs are earned, not opening moves.
+                //
+                // Both used to fire on the first load. For a phone that had
+                // just paired that meant two OS modals stacked over an empty
+                // stack, before the product had shown a single thing it could
+                // do — and the panel explaining when we'd buzz was rendered
+                // *behind* the dialog asking to buzz. Ask once there is
+                // something to notify about, and never in demo, where nothing
+                // can buzz and the fixture calendar is the calendar.
+                if !DemoMode.active && (model?.threads.isEmpty == false) {
                     await PushRegistrar.shared.start(api: syncService.api)
-                    // The main view owns pushing the device calendar to the
-                    // backend (moved here from the deck, which moved it
-                    // from Now).
                     await CalendarSync.shared.sync(via: syncService.api)
                 }
                 // §v3 ws4 — keep the engine's door list fresh so failover
@@ -265,16 +271,59 @@ struct ThreadsView: View {
                     pairing = false
                     Task { await model?.load() }
                 }
-                .presentationDetents([.medium])
+                .presentationDetents([.medium, .large])
                 .presentationCornerRadius(22)
             }
+            // The full scanner, reachable from the demo banner and from
+            // "Pair a different Mac" — the two places someone needs a way
+            // out and used to have none.
+            .fullScreenCover(isPresented: $repairing) {
+                PairScanView(onPaired: {
+                    repairing = false
+                    DemoMode.leave()
+                    Task { await model?.load() }
+                }, onBack: { repairing = false })
+                .background(Theme.paper)
+            }
         }
+    }
+
+    /// §v3.1 — an engine that can't be reached must say so. `failed` was
+    /// being set and never read, so a sleeping Mac or a moved address
+    /// rendered as a title, a blank subtitle and nothing else at all.
+    private var unreachable: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            HStack(spacing: 7) {
+                Image(systemName: "exclamationmark.triangle.fill")
+                    .font(.system(size: 12)).foregroundStyle(Theme.alert)
+                Text("Can't reach your Mac")
+                    .font(.system(size: 13.5, weight: .semibold))
+                    .foregroundStyle(Theme.ink)
+            }
+            Text("Tried \(APIClient.defaultBaseURL.host ?? "the saved address"). It may be asleep, on another network, or at a new address.")
+                .font(.system(size: 12))
+                .foregroundStyle(Theme.inkSoft)
+                .fixedSize(horizontal: false, vertical: true)
+            HStack(spacing: 14) {
+                Button("Try again") { Task { await model?.load() } }
+                    .font(.system(size: 12.5, weight: .medium))
+                    .foregroundStyle(Theme.brand)
+                Button("Pair a different Mac") { repairing = true }
+                    .font(.system(size: 12.5, weight: .medium))
+                    .foregroundStyle(Theme.brand)
+            }
+        }
+        .padding(13)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(Theme.emberSoft, in: RoundedRectangle(cornerRadius: Theme.radius))
+        .padding(.horizontal, Theme.margin)
+        .padding(.top, 6)
     }
 
     /// §v3 ws6 — the demo wears its label. Tapping it opens the same claim
     /// the 401 path uses; a real token ends the demo on its own.
     private var demoBanner: some View {
-        Button { pairing = true } label: {
+        Button { repairing = true } label: {
             HStack(spacing: 6) {
                 Image(systemName: "sparkles")
                     .font(.system(size: 11))
@@ -397,7 +446,12 @@ struct ThreadsView: View {
             }
 
             if let m = model, m.threads.isEmpty, m.stack != nil {
-                NothingRunning().plainRow()
+                NothingRunning { starter in
+                    Task {
+                        _ = await model?.declare(title: starter, summary: "",
+                                                 deadline: nil)
+                    }
+                }.plainRow()
             }
         }
         .listStyle(.plain)
@@ -754,6 +808,19 @@ struct ActivityTrack: View {
 /// The empty state. "Fewer threads" is the goal, so arriving here is a win and
 /// should read like one — not like a screen that failed to load.
 private struct NothingRunning: View {
+    var onDeclare: (String) -> Void = { _ in }
+
+    /// Examples, because "add one with +" is a verb with no object.
+    /// Neither the author nor the person demoing could think of what to type
+    /// in front of a real user — so the empty state suggests, and a tap is
+    /// the whole interaction.
+    private let starters = [
+        "Reply to someone I owe",
+        "Book the thing we keep talking about",
+        "Send the photos I promised",
+        "Find someone to fix it",
+    ]
+
     var body: some View {
         VStack(spacing: 8) {
             Image(systemName: "checkmark.circle")
@@ -762,10 +829,28 @@ private struct NothingRunning: View {
             Text("Nothing open — for now")
                 .font(Theme.serif(19, .semibold))
                 .foregroundStyle(Theme.ink)
-            Text("Your mail is being read as we speak. Add a loose end with +, or give it an hour and let one find you.")
+            Text("Your Mac is reading. Add one yourself, or give it an hour and let one find you.")
                 .font(.system(size: 12))
                 .foregroundStyle(Theme.inkFaint)
                 .multilineTextAlignment(.center)
+
+            VStack(spacing: 6) {
+                ForEach(starters, id: \.self) { starter in
+                    Button { onDeclare(starter) } label: {
+                        HStack(spacing: 7) {
+                            Image(systemName: "plus")
+                                .font(.system(size: 10, weight: .semibold))
+                            Text(starter).font(.system(size: 13))
+                            Spacer(minLength: 0)
+                        }
+                        .foregroundStyle(Theme.brand)
+                        .padding(.horizontal, 13).padding(.vertical, 9)
+                        .background(Theme.brandSoft, in: RoundedRectangle(cornerRadius: 10))
+                    }
+                    .buttonStyle(.plain)
+                }
+            }
+            .padding(.top, 14)
 
             // §v3 ws6, screen 9 — the buzz contract, stated before the first
             // buzz. The notification promise is part of onboarding, not a

@@ -29,18 +29,18 @@ actor APIClient {
         encoder.keyEncodingStrategy = .convertToSnakeCase
     }
 
-    /// Resolves the backend address, most specific first:
-    ///   1. a `LifelineAPIBaseURL` UserDefaults override (a Settings screen or
-    ///      `-LifelineAPIBaseURL <url>` launch arg can set this at runtime),
-    ///   2. the `LifelineAPIBaseURL` baked into Info.plist (the dev machine's
-    ///      LAN address, so a physical phone on the same Wi-Fi can reach it),
-    ///   3. localhost, for the simulator with no configuration.
+    /// Resolves the backend address:
+    ///   1. the address this phone learned when it paired, or was told to use,
+    ///   2. localhost, for the simulator with no configuration.
+    ///
+    /// **No address is baked into the build.** One used to be — the author's
+    /// own tailnet Mac — and it made every fresh install point at his engine:
+    /// a stranger's pairing code was sent to a machine that had never minted
+    /// it, which answered 404, which the app reported as "that code expired".
+    /// It worked for exactly one person and failed silently for everyone
+    /// else. A shipped default address is a bug with a very long fuse.
     static var defaultBaseURL: URL {
         if let raw = UserDefaults.standard.string(forKey: "LifelineAPIBaseURL"),
-           let url = URL(string: raw) {
-            return url
-        }
-        if let raw = Bundle.main.object(forInfoDictionaryKey: "LifelineAPIBaseURL") as? String,
            let url = URL(string: raw) {
             return url
         }
@@ -188,12 +188,48 @@ actor APIClient {
 
     /// Spend a pairing code for this phone's bearer token. The claim itself
     /// is the API's one open door, so it works before any token exists.
+    /// Spend a pairing code at each candidate door until one accepts it.
+    ///
+    /// A code belongs to exactly one engine, so this never "falls back" to a
+    /// different engine that happens to answer — it tries the addresses that
+    /// engine itself gave us (LAN, then tailnet), because which of them is
+    /// reachable depends on the network the phone is on right now. The door
+    /// that works is adopted only after the claim succeeds.
+    func pair(code: String, deviceName: String, doors: [URL]) async throws {
+        var lastError: Error = URLError(.cannotConnectToHost)
+        for door in doors {
+            let previous = baseURL
+            baseURL = door
+            do {
+                try await claim(code: code, deviceName: deviceName)
+                rebase(to: door)
+                return
+            } catch let error as URLError where Self.isDoorProblem(error) {
+                lastError = error          // unreachable here; try the next
+                baseURL = previous
+            } catch {
+                baseURL = previous         // the engine answered and refused
+                throw error
+            }
+        }
+        throw lastError
+    }
+
     func pair(code: String, deviceName: String) async throws {
+        try await pair(code: code, deviceName: deviceName, doors: [baseURL])
+    }
+
+    private func claim(code: String, deviceName: String) async throws {
         struct Body: Encodable { let code: String; let deviceName: String }
-        struct Response: Decodable { let token: String; let urls: [String]? }
+        struct Response: Decodable { let token: String; let urls: [String]?
+                                     let serverName: String? }
         let response: Response = try await send(
             "POST", "/pair/claim", body: Body(code: code, deviceName: deviceName))
         TokenStore.save(response.token)
+        // Which Mac this phone belongs to, so a screen can say so later.
+        if let name = response.serverName {
+            UserDefaults.standard.set(name, forKey: "LifelineEngineName")
+        }
         // §v3 ws6 — a real token ends the demo; the crafted world steps aside.
         DemoMode.leave()
         // §v3 ws4 — the moment the phone earns its key it learns every door.

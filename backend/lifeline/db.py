@@ -174,6 +174,17 @@ def _people_become_entities(conn: sqlite3.Connection) -> None:
                 )
 
 
+def _mail_source_rename_items(conn: sqlite3.Connection) -> None:
+    """The half of the rename that was missed.
+
+    Tolerant of a database old enough not to have `items` yet: migrations run
+    forward from any version, including ones predating the table."""
+    try:
+        conn.execute("UPDATE items SET source = 'mail' WHERE source = 'gmail'")
+    except sqlite3.OperationalError:
+        pass
+
+
 def _mail_source_rename(conn: sqlite3.Connection) -> None:
     """Rename the mail source in place, conversations and all.
 
@@ -474,6 +485,10 @@ MIGRATIONS: List[List[Any]] = [
     [_mail_source_rename],
     # §v3 — nothing authenticates to anyone any more.
     ["DROP TABLE IF EXISTS oauth_tokens"],
+    # The mail rename reached messages, conversations and attachments but not
+    # `items`, so 163 extracted items still claimed a source their own message
+    # no longer had. Anything filtering items by source silently lost them.
+    [_mail_source_rename_items],
 ]
 
 

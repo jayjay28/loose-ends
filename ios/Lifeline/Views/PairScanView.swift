@@ -19,7 +19,12 @@ struct PairScanView: View {
     @State private var claiming = false
     @State private var error: String?
     @State private var typing = false
-    @State private var cameraDenied = false
+    @State private var camera: CameraState = .asking
+    @Environment(\.scenePhase) private var scenePhase
+
+    /// Three outcomes, not two: a Mac with no camera and a phone whose owner
+    /// said no need different words and different exits.
+    enum CameraState { case asking, allowed, denied, unavailable }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
@@ -41,7 +46,30 @@ struct PairScanView: View {
                 .padding(.bottom, 18)
 
             ZStack {
-                if cameraDenied {
+                switch camera {
+                case .allowed:
+                    QRScanner(paused: claiming) { handle(payload: $0) }
+                case .asking:
+                    ProgressView().controlSize(.small)
+                case .denied:
+                    VStack(spacing: 10) {
+                        Image(systemName: "camera.on.rectangle")
+                            .font(.system(size: 28, weight: .light))
+                            .foregroundStyle(Theme.inkGhost)
+                        Text("Camera access is off, so the code can't be scanned.")
+                            .font(.system(size: 13))
+                            .foregroundStyle(Theme.inkFaint)
+                            .multilineTextAlignment(.center)
+                        Button("Open Settings") {
+                            if let url = URL(string: UIApplication.openSettingsURLString) {
+                                UIApplication.shared.open(url)
+                            }
+                        }
+                        .font(.system(size: 13, weight: .medium))
+                        .foregroundStyle(Theme.brand)
+                    }
+                    .padding(.horizontal, 24)
+                case .unavailable:
                     VStack(spacing: 10) {
                         Image(systemName: "camera.on.rectangle")
                             .font(.system(size: 28, weight: .light))
@@ -50,8 +78,6 @@ struct PairScanView: View {
                             .font(.system(size: 13))
                             .foregroundStyle(Theme.inkFaint)
                     }
-                } else {
-                    QRScanner(paused: claiming) { handle(payload: $0) }
                 }
             }
             .frame(maxWidth: .infinity)
@@ -91,9 +117,12 @@ struct PairScanView: View {
                 .padding(.bottom, 22)
         }
         .padding(.horizontal, Theme.margin)
-        .task {
-            let granted = await AVCaptureDevice.requestAccess(for: .video)
-            cameraDenied = !granted
+        .task { await checkCamera() }
+        // Granting access in Settings and coming back must re-check: the
+        // `.task` above does not run again, so denial used to be permanent
+        // for the life of the screen.
+        .onChange(of: scenePhase) { _, phase in
+            if phase == .active { Task { await checkCamera() } }
         }
         .sheet(isPresented: $typing) {
             PairSheet {
@@ -102,6 +131,21 @@ struct PairScanView: View {
             }
             .presentationDetents([.medium])
             .presentationCornerRadius(22)
+        }
+    }
+
+    private func checkCamera() async {
+        guard AVCaptureDevice.default(for: .video) != nil else {
+            camera = .unavailable
+            return
+        }
+        switch AVCaptureDevice.authorizationStatus(for: .video) {
+        case .authorized:
+            camera = .allowed
+        case .notDetermined:
+            camera = await AVCaptureDevice.requestAccess(for: .video) ? .allowed : .denied
+        default:
+            camera = .denied
         }
     }
 
@@ -119,12 +163,17 @@ struct PairScanView: View {
         claiming = true
         error = nil
         Task {
-            if let raw = qr.url, let url = URL(string: raw) {
-                await syncService.api.rebase(to: url)
-            }
-            await EngineLocator.shared.remember(urls: qr.urls ?? [qr.url].compactMap { $0 })
+            // Every address that engine gave us, in its own order of
+            // preference. Nothing is adopted until a claim actually
+            // succeeds — a failed scan used to leave the phone pointed at
+            // an unreachable address it had never proved.
+            let doors = (qr.urls ?? []).compactMap(URL.init(string:))
+                + [qr.url].compactMap { $0 }.compactMap(URL.init(string:))
             do {
-                try await syncService.api.pair(code: code, deviceName: UIDevice.current.name)
+                try await syncService.api.pair(code: code,
+                                               deviceName: UIDevice.current.name,
+                                               doors: doors)
+                await EngineLocator.shared.remember(urls: doors.map(\.absoluteString))
                 claiming = false
                 onPaired()
             } catch is URLError {

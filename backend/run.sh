@@ -1,6 +1,9 @@
 #!/bin/zsh
-# Lifeline backend — run from your FDA terminal (needs Full Disk Access for
-# iMessage and GOOGLE_CLIENT_ID/SECRET + GEMINI_API_KEY in the environment).
+# Loose Ends engine — the development runner. `deploy/install.sh` is what a
+# real install uses; this is for running it by hand in a terminal that has
+# Full Disk Access (needed to read Messages and Mail).
+#
+# Credentials live in ~/.lifeline/env, written by the setup wizard.
 #
 # Uses the repo venv's python so it works regardless of what `python3` means
 # in the current shell. --reload is not optional: it picks up every code

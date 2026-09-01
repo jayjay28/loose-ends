@@ -12,7 +12,7 @@ from lifeline import db, threads
 from lifeline.assistant import sweeps
 from lifeline.models import Message, ThreadOrigin, ThreadState, new_id
 
-from tests.conftest import NOW, make_person, make_conversation
+from tests.conftest import NOW, make_conversation, make_item, make_person
 
 
 def say(conversation_id, person_id, text, days_ago, from_user=False):
@@ -215,3 +215,60 @@ def test_a_tapback_is_not_a_last_word():
     say("imessage:ben", "ben", "Liked “OK, we'll talk later”", 9, from_user=True)
 
     assert sweeps.silence_sweep(NOW) == 0
+
+
+# ------------------------------------------- proposing what extraction found
+def test_a_strong_unattached_item_is_offered_as_a_loop():
+    """The gap the audit found: 541 open items against one new thread, because
+    extraction filled the items table and nothing connected it to the stack the
+    app actually shows."""
+    from lifeline.models import ThreadState
+
+    make_conversation()
+    make_person("tess", "Tess", "spouse")
+    item = make_item(text="can you send the deposit before friday")
+    db.get_connection().execute(
+        "UPDATE items SET score = 0.9, status = 'pending' WHERE id = ?", (item.id,))
+    db.get_connection().commit()
+
+    assert sweeps.propose_sweep() == 1
+    proposed = db.list_threads(states=[ThreadState.PROPOSED])
+    assert len(proposed) == 1
+    assert db.thread_evidence(proposed[0].id)[0].ref_id == item.id
+
+
+def test_a_weak_item_is_not_offered():
+    """Proposing guesses teaches people to ignore the proposals."""
+    make_conversation()
+    make_person("tess", "Tess", "spouse")
+    item = make_item(text="ok")
+    db.get_connection().execute(
+        "UPDATE items SET score = 0.2, status = 'pending' WHERE id = ?", (item.id,))
+    db.get_connection().commit()
+    assert sweeps.propose_sweep() == 0
+
+
+def test_an_item_already_claimed_is_not_offered_again():
+    from lifeline.models import ThreadState
+
+    make_conversation()
+    make_person("tess", "Tess", "spouse")
+    item = make_item(text="can you send the deposit before friday")
+    db.get_connection().execute(
+        "UPDATE items SET score = 0.9, status = 'pending' WHERE id = ?", (item.id,))
+    db.get_connection().commit()
+
+    assert sweeps.propose_sweep() == 1
+    assert sweeps.propose_sweep() == 0, "one loop per item, however often we sweep"
+    assert len(db.list_threads(states=[ThreadState.PROPOSED])) == 1
+
+
+def test_a_cycle_offers_a_readable_number_not_an_inbox():
+    make_conversation()
+    make_person("tess", "Tess", "spouse")
+    for n in range(12):
+        item = make_item(text=f"please send thing number {n} before friday")
+        db.get_connection().execute(
+            "UPDATE items SET score = 0.9, status = 'pending' WHERE id = ?", (item.id,))
+    db.get_connection().commit()
+    assert sweeps.propose_sweep() == sweeps.PROPOSE_PER_CYCLE

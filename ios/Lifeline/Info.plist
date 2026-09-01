@@ -24,8 +24,6 @@
 	<true/>
 	<key>ITSAppUsesNonExemptEncryption</key>
 	<false/>
-	<key>LifelineAPIBaseURL</key>
-	<string>https://your-mac.your-tailnet.ts.net</string>
 	<key>NSAppTransportSecurity</key>
 	<dict>
 		<key>NSAllowsLocalNetworking</key>

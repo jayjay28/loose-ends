@@ -178,21 +178,65 @@ def import_export(
 
 
 # ------------------------------------------------------- the live store
-def _jid_handle(jid: str) -> str:
-    """The phone number out of a WhatsApp JID.
+# What the right-hand side of a JID means. Learned from a real store, where
+# assuming "the bit before the @ is a phone number" invented twelve people out
+# of group ids and privacy identifiers, none of whom could ever match the same
+# human's iMessage.
+_PHONE_DOMAIN = "@s.whatsapp.net"     # the only JID that carries a real number
+_GROUP_DOMAIN = "@g.us"               # the left half is a group id, not a person
+_STATUS_DOMAINS = ("@status", "@lid.status", "@broadcast")   # stories, not messages
 
-    JIDs look like ``4155550142@s.whatsapp.net`` for people and
-    ``1234567890-1600000000@g.us`` for groups. Only the left half is an
-    identity, and normalising it the way every other source does is what lets
-    a WhatsApp thread and an iMessage thread resolve to one person.
+
+def _jid_handle(jid: str) -> str:
+    """The phone number out of a WhatsApp JID, or "" when there isn't one.
+
+    Only ``4155550142@s.whatsapp.net`` carries a number. A group id
+    (``…@g.us``) belongs to a conversation, not a person, and a ``@lid`` is
+    WhatsApp's opaque linked identifier — deliberately *not* a phone number.
+    Normalising either into a handle fabricates a person who can never match
+    the same human's iMessage, which is exactly what happened on the first
+    real store: fourteen handles, zero of them shared with anything.
     """
-    left = (jid or "").split("@", 1)[0]
-    left = left.split("-", 1)[0] if "-" in left else left
+    jid = jid or ""
+    if not jid.endswith(_PHONE_DOMAIN):
+        return ""
+    left = jid.split("@", 1)[0]
     return normalise_handle(left) if left else ""
 
 
 def _is_group(jid: str) -> bool:
-    return (jid or "").endswith("@g.us")
+    return (jid or "").endswith(_GROUP_DOMAIN)
+
+
+# ZPUSHNAME is a human display name on iOS. On the Mac store it is an opaque
+# encoded token — 831 distinct values across 831 messages on the first real
+# probe, one of which the resolver happily turned into a "person" holding 829
+# messages. A name has to look like a name before it is allowed to be one.
+_TOKEN_LOOKING = re.compile(r"^[A-Za-z0-9+/=_-]{16,}$")
+
+
+def _plausible_name(value: str) -> str:
+    """The name if it could belong to a human, else "".
+
+    Attributing messages to a person named ``CKrnvdMGIABIAZAB…`` is worse
+    than attributing them to nobody: it poisons the person graph, and every
+    ranking signal that counts "messages from this person" counts a ghost.
+    """
+    name = (value or "").strip()
+    if not name or len(name) > 64:
+        return ""
+    # A token has no spaces and reads as base64; a name usually has one and
+    # never does.
+    if " " not in name and _TOKEN_LOOKING.match(name):
+        return ""
+    return name
+
+
+def _is_status(jid: str) -> bool:
+    """WhatsApp Status posts: somebody's story, broadcast to everyone who has
+    their number. Not addressed to the user, not a conversation, never a
+    loose end — 19 of the first 1,103 messages ingested were these."""
+    return any((jid or "").endswith(d) for d in _STATUS_DOMAINS)
 
 
 def _when(value) -> Optional[str]:
@@ -235,6 +279,13 @@ def read_store(path: Path, after_pk: Optional[int] = None,
             return []
 
         has_session = bool(_columns(conn, "ZWACHATSESSION"))
+        # Who sent a *group* message is not in ZFROMJID — that column carries
+        # the JID the message arrived through, which for a group is the group
+        # itself (all 3,945 of them on the first real store). The sender is a
+        # row in ZWAGROUPMEMBER, and its ZMEMBERJID is the phone JID that ties
+        # them to the same human's iMessage.
+        member_cols = _columns(conn, "ZWAGROUPMEMBER")
+        has_member = "ZMEMBERJID" in member_cols
         clauses = ["m.ZTEXT IS NOT NULL", "m.ZTEXT <> ''"]
         params: List[object] = []
         if after_pk is not None:
@@ -249,9 +300,12 @@ def read_store(path: Path, after_pk: Optional[int] = None,
                    m.ZISFROMME AS from_me, m.ZFROMJID AS from_jid,
                    m.ZTOJID AS to_jid, m.ZPUSHNAME AS push_name,
                    {'s.ZCONTACTJID AS chat_jid, s.ZPARTNERNAME AS partner'
-                    if has_session else "NULL AS chat_jid, NULL AS partner"}
+                    if has_session else "NULL AS chat_jid, NULL AS partner"},
+                   {'g.ZMEMBERJID AS member_jid, g.ZCONTACTNAME AS member_name'
+                    if has_member else "NULL AS member_jid, NULL AS member_name"}
             FROM ZWAMESSAGE m
             {'LEFT JOIN ZWACHATSESSION s ON s.Z_PK = m.ZCHATSESSION' if has_session else ''}
+            {'LEFT JOIN ZWAGROUPMEMBER g ON g.Z_PK = m.ZGROUPMEMBER' if has_member else ''}
             WHERE {' AND '.join(clauses)}
             ORDER BY m.Z_PK
         """
@@ -269,6 +323,8 @@ def read_store(path: Path, after_pk: Optional[int] = None,
         if not text or _is_system(text):
             continue
         chat_jid = row["chat_jid"] or row["to_jid"] or row["from_jid"] or ""
+        if _is_status(chat_jid):
+            continue
         found.append({
             "pk": row["pk"],
             "text": text,
@@ -276,8 +332,10 @@ def read_store(path: Path, after_pk: Optional[int] = None,
             "from_me": bool(row["from_me"]),
             "chat_jid": chat_jid,
             "partner": (row["partner"] or "").strip(),
-            "sender_jid": row["from_jid"] or "",
+            # In a group the member row is the sender; one-to-one, ZFROMJID is.
+            "sender_jid": (row["member_jid"] or row["from_jid"] or ""),
             "push_name": (row["push_name"] or "").strip(),
+            "member_name": (row["member_name"] or "").strip(),
         })
     return found
 
@@ -298,12 +356,20 @@ def store_rows(rows: List[Dict[str, object]],
 
         person = None
         if not row["from_me"]:
-            # In a group the sender is whoever sent it; one-to-one, the chat
-            # partner is the sender. The handle is what ties this to their
-            # iMessage and mail — the name is only a label.
-            handle = _jid_handle(str(row["sender_jid"]) or chat_jid)
-            name = str(row["push_name"]) or (str(row["partner"]) if not group else "")
-            person = resolver.resolve(handle or None, name or None)
+            # Who sent it: their own JID in a group, the chat's JID one-to-one.
+            # Never the group id — that names a room, not a person.
+            sender_jid = str(row["sender_jid"]) or ("" if group else chat_jid)
+            handle = _jid_handle(sender_jid)
+            name = (_plausible_name(str(row.get("member_name", "")))
+                    or _plausible_name(str(row["push_name"]))
+                    or (_plausible_name(str(row["partner"])) if not group else ""))
+            # A name with no handle still resolves — that is how someone known
+            # from Contacts is recognised. But neither a handle nor a real
+            # name means we genuinely do not know who spoke, and saying so is
+            # the honest answer: modern WhatsApp identifies group senders by
+            # an opaque @lid, on purpose.
+            if handle or name:
+                person = resolver.resolve(handle or None, name or None)
 
         messages.append(make_message(
             source=SOURCE,

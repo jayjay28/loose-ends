@@ -15,8 +15,10 @@ from __future__ import annotations
 import json
 import logging
 import os
+import shutil
 import socket
 import subprocess
+from pathlib import Path
 from typing import Any, Dict, List, Optional
 
 log = logging.getLogger(__name__)
@@ -58,10 +60,36 @@ def lan_ip() -> Optional[str]:
         return None
 
 
+# Where the Tailscale CLI actually lives. The Mac App Store build ships it
+# inside the app bundle and puts nothing on PATH, and a launchd job gets the
+# bare system PATH — so `shutil.which` alone reported "no tailnet" on a Mac
+# that was actively serving one, and the QR offered only a LAN address that
+# stops working the moment you leave the house.
+_TAILSCALE_HOMES = (
+    "/Applications/Tailscale.app/Contents/MacOS/Tailscale",
+    "/usr/local/bin/tailscale",
+    "/opt/homebrew/bin/tailscale",
+    str(Path.home() / "Applications" / "Tailscale.app" / "Contents" / "MacOS" / "Tailscale"),
+)
+
+
+def _tailscale() -> Optional[str]:
+    found = shutil.which("tailscale")
+    if found:
+        return found
+    for candidate in _TAILSCALE_HOMES:
+        if os.access(candidate, os.X_OK):
+            return candidate
+    return None
+
+
 def tailnet_url() -> Optional[str]:
     """The HTTPS door Tailscale serve terminates, when the tailnet is up."""
+    binary = _tailscale()
+    if not binary:
+        return None
     try:
-        out = subprocess.run(["tailscale", "status", "--json"],
+        out = subprocess.run([binary, "status", "--json"],
                              capture_output=True, text=True, timeout=5)
         dns = json.loads(out.stdout).get("Self", {}).get("DNSName", "").rstrip(".")
         if dns:

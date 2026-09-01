@@ -44,20 +44,63 @@ def test_a_missing_key_is_skipped_not_failed():
             assert doctor.check_anthropic().status == doctor.SKIP
 
 
-def test_a_rejected_key_fails_rather_than_passing_on_presence():
-    """The whole point: a key that exists but does not work."""
-    from lifeline import config
+def _answer(status: int, body: str = ""):
+    class R:
+        status_code = status
+        text = body
+    return lambda *a, **k: R()
 
-    cfg = config.Config(anthropic_api_key="sk-ant-dead")
+
+def test_a_key_with_no_credit_fails_rather_than_passing():
+    """The audit's worst finding, reproduced from the real API response.
+
+    A key on an account without billing authenticates perfectly and returns
+    400 "credit balance is too low" — and the old check called
+    `count_tokens`, which is free and answers 200 regardless, so a dead
+    engine reported healthy."""
+    from lifeline import config
+    import httpx
+
+    cfg = config.Config(anthropic_api_key="sk-ant-real-but-broke", offline_extraction=False)
+    body = ('{"type":"error","error":{"message":"Your credit balance is too '
+            'low to access the Anthropic API."}}')
     with patch.object(doctor, "get_config", lambda: cfg):
-        with patch("lifeline.extraction.claude._client") as client:
-            client.return_value.messages.count_tokens.side_effect = RuntimeError(
-                "credit balance is too low"
-            )
+        with patch.object(httpx, "post", _answer(400, body)):
             check = doctor.check_anthropic()
 
     assert check.status == doctor.FAIL
-    assert "credit balance" in check.detail
+    assert "no credit" in check.detail
+    assert "billing" in (check.fix or "")
+
+
+def test_a_key_that_generates_passes():
+    from lifeline import config
+    import httpx
+
+    cfg = config.Config(anthropic_api_key="sk-ant-good", offline_extraction=False)
+    with patch.object(doctor, "get_config", lambda: cfg):
+        with patch.object(httpx, "post", _answer(200)):
+            assert doctor.check_anthropic().status == doctor.OK
+
+
+def test_a_rejected_key_fails():
+    from lifeline import config
+    import httpx
+
+    cfg = config.Config(anthropic_api_key="sk-ant-dead", offline_extraction=False)
+    with patch.object(doctor, "get_config", lambda: cfg):
+        with patch.object(httpx, "post", _answer(401, "unauthorized")):
+            assert doctor.check_anthropic().status == doctor.FAIL
+
+
+def test_being_rate_limited_is_not_being_broken():
+    from lifeline import config
+    import httpx
+
+    cfg = config.Config(anthropic_api_key="sk-ant-busy", offline_extraction=False)
+    with patch.object(doctor, "get_config", lambda: cfg):
+        with patch.object(httpx, "post", _answer(429, "rate limited")):
+            assert doctor.check_anthropic().status == doctor.WARN
 
 
 def test_stale_ingestion_warns_even_though_the_read_works():

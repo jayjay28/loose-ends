@@ -181,6 +181,55 @@ def _already_carried(conversation_id: str, key: str) -> bool:
     return False
 
 
+# How many loops the system may offer in one cycle. A proposals list is a
+# thing a person reads; an inbox of two hundred is a thing they abandon.
+PROPOSE_PER_CYCLE = 5
+# Below this, an extracted item is a guess. Proposing guesses teaches people
+# to ignore the proposals, which costs more than the misses.
+PROPOSE_FLOOR = 0.55
+
+
+def propose_sweep(limit: int = PROPOSE_PER_CYCLE) -> int:
+    """Offer the best unattached items as loops the user might be carrying.
+
+    Extraction was filling the items table and stopping there: 541 open items
+    on the author's own engine against one new thread in three hours, because
+    nothing connected the two. The app shows threads, so an item no thread
+    claims is a loose end the product found and never mentioned.
+
+    They arrive as *proposals*, not live threads. The spec is explicit that
+    only the user's acceptance puts a loop on the pile — that is what keeps
+    the count meaningful — so this fills the proposals drawer and nothing
+    else.
+    """
+    from .. import db
+    from ..threads import promote_item
+    from ..models import ThreadState
+
+    rows = db.get_connection().execute(
+        """
+        SELECT i.id FROM items i
+        WHERE i.status = 'pending'
+          AND i.score >= ?
+          AND i.id NOT IN (SELECT ref_id FROM thread_evidence WHERE kind = 'item')
+        ORDER BY i.score DESC, i.created_at DESC
+        LIMIT ?
+        """,
+        (PROPOSE_FLOOR, limit),
+    ).fetchall()
+
+    proposed = 0
+    for row in rows:
+        try:
+            promote_item(row["id"], state=ThreadState.PROPOSED)
+            proposed += 1
+        except Exception:
+            log.exception("propose failed for item %s", row["id"])
+    if proposed:
+        log.info("proposed %d loop(s) from unattached items", proposed)
+    return proposed
+
+
 def run_all(reference: Optional[datetime] = None) -> int:
     """Every standing sweep, called by the poller each cycle."""
-    return silence_sweep(reference)
+    return silence_sweep(reference) + propose_sweep()
