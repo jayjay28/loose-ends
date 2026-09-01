@@ -40,8 +40,11 @@ if [ -f "$EXISTING" ] && ! grep -q "$PAYLOAD" "$EXISTING"; then
   grep -o "cd [^ ]*" "$EXISTING" | head -1
   echo "leaving it alone. To switch it to this one, run:"
   echo "  $PAYLOAD/backend/deploy/uninstall.sh && $PAYLOAD/backend/deploy/install.sh"
+  # Their engine, so their port — the installer takes PORT= overrides and the
+  # plist is the only record of which one was used.
+  PORT="$(sed -n 's/.*--port \([0-9][0-9]*\).*/\1/p' "$EXISTING" | head -1)"
   launchctl asuser "$USER_UID" sudo -u "$USER_NAME" \
-    open "http://localhost:8000/setup" 2>/dev/null || true
+    open "http://localhost:${PORT:-8000}/setup" 2>/dev/null || true
   exit 0
 fi
 
@@ -54,6 +57,37 @@ launchctl asuser "$USER_UID" sudo -u "$USER_NAME" \
 STATUS=$?
 echo "install.sh exited $STATUS"
 
-# The package must not report failure for a wizard the user simply hasn't
-# finished; a non-zero here would show macOS's generic "installation failed".
-exit 0
+# Report on what is true, not on what the installer returned.
+#
+# A non-zero exit does not mean nothing works — the wizard being unfinished
+# looks the same from here — and this script used to answer that by exiting 0
+# unconditionally, which meant a Mac that could not build a runtime at all
+# still showed "Installation Successful" over a machine where nothing had been
+# installed. The engine exists if its interpreter and its launch agent exist,
+# so ask those two questions instead.
+if [ -x "$PAYLOAD/backend/.venv/bin/python" ] \
+   && [ -f "$USER_HOME/Library/LaunchAgents/com.looseends.api.plist" ]; then
+  echo "engine installed"
+  exit 0
+fi
+
+# It genuinely did not install. Say why in a window the person will actually
+# see: nothing is running to serve a page, and the log is in /tmp where no one
+# looks. macOS will show its own failure dialog on the way out.
+NOTE="$USER_HOME/Desktop/Loose Ends — install failed.txt"
+{
+  echo "Loose Ends could not finish installing."
+  echo
+  echo "The files were copied, but the engine's Python runtime was not built,"
+  echo "so there is nothing to run yet. Almost always this is the network:"
+  echo "the installer downloads a self-contained Python when the Mac has no"
+  echo "developer tools, and that download has to reach astral.sh."
+  echo
+  echo "Try again with a working connection — installing a second time is"
+  echo "safe and picks up where this left off."
+  echo
+  echo "The full log of what happened:"
+  echo "  $LOG"
+} > "$NOTE" 2>/dev/null && chown "$USER_NAME" "$NOTE" 2>/dev/null
+launchctl asuser "$USER_UID" sudo -u "$USER_NAME" open "$NOTE" 2>/dev/null || true
+exit 1

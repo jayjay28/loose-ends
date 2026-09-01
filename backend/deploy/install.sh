@@ -48,23 +48,91 @@ if [ "$DRY" != "--dry-run" ] && lsof -i ":$PORT" -sTCP:LISTEN >/dev/null 2>&1 \
 fi
 
 # ------------------------------------------------------------ the runtime
-# uv when it's there (fast, brings its own Python); the system python3
-# otherwise (ships with the Xcode command-line tools, 3.9+ is enough).
+#
+# Finding a Python is the one step that fails on exactly the Macs this most
+# needs to work on, and it used to fail invisibly.
+#
+# `command -v python3` is not a test. /usr/bin/python3 is a 118K stub that
+# ships on every Mac whether or not the developer tools behind it exist; the
+# check always passed, so the "no python3 found" branch below was unreachable
+# and a Mac without the tools took the system-python path, where the stub
+# either raises a GUI dialog or exits non-zero. The only honest question is
+# whether python3 *runs*, so ask it that way — under a time limit, because a
+# stub waiting on a dialog nobody will answer waits forever.
+limited() {
+  local secs="$1"; shift
+  "$@" >/dev/null 2>&1 &
+  local pid=$! waited=0
+  while kill -0 "$pid" 2>/dev/null; do
+    if [ "$waited" -ge "$secs" ]; then
+      kill -9 "$pid" 2>/dev/null; wait "$pid" 2>/dev/null || true; return 124
+    fi
+    sleep 1; waited=$((waited + 1))
+  done
+  wait "$pid"
+}
+
+python_runs() {
+  limited 25 python3 -c 'import venv,sys; sys.exit(0 if sys.version_info>=(3,9) else 1)'
+}
+
 say "installing the engine's dependencies — 1 to 3 minutes, and the quietest part of this"
+
+UV=""
 if command -v uv >/dev/null 2>&1; then
+  UV="$(command -v uv)"
+elif [ -x "$BACKEND/.uv/uv" ]; then
+  UV="$BACKEND/.uv/uv"
+fi
+
+if [ -z "$UV" ] && [ "$DRY" != "--dry-run" ] && ! python_runs; then
+  # No usable Python and no uv. Rather than send someone to `xcode-select
+  # --install` — a terminal instruction, given to the one audience that told
+  # us plainly it will not open a terminal — fetch uv, which is a single
+  # static binary that brings its own Python and needs neither the developer
+  # tools nor an admin password.
+  say "this Mac has no usable Python — fetching a self-contained one…"
+  if curl -LsSf https://astral.sh/uv/install.sh \
+       | env UV_INSTALL_DIR="$BACKEND/.uv" UV_NO_MODIFY_PATH=1 sh >/dev/null 2>&1 \
+     && [ -x "$BACKEND/.uv/uv" ]; then
+    UV="$BACKEND/.uv/uv"
+    say "done — the engine will use its own Python, nothing system-wide changed"
+  else
+    warn "couldn't install a Python runtime, and the engine cannot run without one."
+    warn ""
+    warn "  This Mac has no developer tools, and fetching a standalone Python"
+    warn "  failed — most often no network, or a proxy blocking astral.sh."
+    warn ""
+    warn "  With a network, running this installer again is all it takes."
+    warn "  Otherwise install Apple's tools once:  xcode-select --install"
+    exit 1
+  fi
+fi
+
+if [ -n "$UV" ]; then
+  # A named version, not a floor. `>=3.11` resolves to whatever is newest,
+  # which put a test install on 3.14 the week it appeared — every stranger
+  # would have been the first person to run this engine on that interpreter.
+  # CI proves 3.9 and 3.12; 3.12 is the one to hand people, and uv fetches it
+  # if the Mac has no Python at all.
   say "creating the runtime with uv…"
-  run uv venv --quiet --python ">=3.11" "$BACKEND/.venv" || run uv venv --quiet "$BACKEND/.venv"
-  run uv pip install --quiet -r "$BACKEND/requirements.txt" --python "$BACKEND/.venv/bin/python"
-elif command -v python3 >/dev/null 2>&1; then
+  run "$UV" venv --quiet --python 3.12 "$BACKEND/.venv" \
+    || run "$UV" venv --quiet "$BACKEND/.venv"
+  run "$UV" pip install --quiet -r "$BACKEND/requirements.txt" \
+    --python "$BACKEND/.venv/bin/python"
+else
   say "creating the runtime with the system python3 ($(python3 --version 2>&1))…"
   if [ ! -x "$BACKEND/.venv/bin/python" ]; then
     run python3 -m venv "$BACKEND/.venv"
   fi
   run "$BACKEND/.venv/bin/python" -m pip install --quiet --upgrade pip
   run "$BACKEND/.venv/bin/python" -m pip install --quiet -r "$BACKEND/requirements.txt"
-else
-  warn "no python3 found — install the Xcode command-line tools first:"
-  warn "    xcode-select --install"
+fi
+
+# Whatever route got us here, the engine is only installed if this exists.
+if [ "$DRY" != "--dry-run" ] && [ ! -x "$BACKEND/.venv/bin/python" ]; then
+  warn "the runtime wasn't created — $BACKEND/.venv/bin/python is missing."
+  warn "nothing was started. Re-run this installer to try again."
   exit 1
 fi
 
