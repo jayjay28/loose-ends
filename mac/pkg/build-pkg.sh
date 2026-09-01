@@ -21,7 +21,9 @@ BUILD="$HERE/build"
 ROOTDIR="$BUILD/root"
 PAYLOAD="$ROOTDIR/usr/local/loose-ends"
 IDENTIFIER="dev.clyon.looseends.engine"
-VERSION="${VERSION:-1.0}"
+# shellcheck source=../version.sh
+. "$ROOT/mac/version.sh"
+VERSION="${VERSION:-$VERSION_FULL}"
 PROFILE="${NOTARY_PROFILE:-looseends}"
 PKG="$BUILD/LooseEnds-$VERSION.pkg"
 
@@ -51,6 +53,12 @@ if [ "$MODE" = "--check" ] || { [ -z "$INSTALLER_ID" ] && [ "$MODE" != "--unsign
 fi
 
 # ------------------------------------------------------------------ payload
+say "version $VERSION (commit $VERSION_SHA)"
+if [ "$VERSION_DIRTY" = "1" ]; then
+  warn "the working tree has uncommitted changes."
+  warn "  $VERSION_SHA does not describe what is about to be built, so this package"
+  warn "  cannot be identified later. Fine for testing; commit before sharing."
+fi
 say "assembling the payload"
 rm -rf "$BUILD"
 mkdir -p "$PAYLOAD" "$BUILD"

@@ -13,6 +13,8 @@
 set -euo pipefail
 
 HERE="$(cd "$(dirname "$0")" && pwd)"
+# shellcheck source=version.sh
+. "$(cd "$(dirname "$0")" && pwd)/version.sh"
 PROJECT="$HERE/Loose Ends Menu Bar.xcodeproj"
 SCHEME="Loose Ends Menu Bar"
 PROFILE="${NOTARY_PROFILE:-looseends}"
@@ -72,10 +74,14 @@ fi
 # ------------------------------------------------------------------- build
 say "building Release with $IDENTITY"
 rm -rf "$BUILD"
+# The version is passed in rather than read from the project file, so the
+# app and the package that carries it can never disagree about which build
+# this is. Both get their numbers from mac/version.sh.
 xcodebuild -project "$PROJECT" -scheme "$SCHEME" -configuration Release \
   -derivedDataPath "$BUILD/dd" \
   CODE_SIGN_IDENTITY="$IDENTITY" CODE_SIGN_STYLE=Manual \
   OTHER_CODE_SIGN_FLAGS="--timestamp" \
+  MARKETING_VERSION="$VERSION_MARKETING" CURRENT_PROJECT_VERSION="$VERSION_BUILD" \
   >/dev/null
 mkdir -p "$BUILD"
 cp -R "$BUILD/dd/Build/Products/Release/Loose Ends.app" "$APP"

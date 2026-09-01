@@ -17,6 +17,7 @@ from typing import Any, Dict, List, Optional
 from fastapi import BackgroundTasks, FastAPI, HTTPException, Query
 from fastapi.responses import HTMLResponse, RedirectResponse
 
+from .. import __version__
 from .. import db
 from .. import threads as threads_mod
 from ..threads import closure as thread_closure_engine
@@ -128,7 +129,7 @@ async def lifespan(app: FastAPI):
         transport.withdraw()
 
 
-app = FastAPI(title="Lifeline", version="1.0.0", lifespan=lifespan)
+app = FastAPI(title="Lifeline", version=__version__, lifespan=lifespan)
 
 # §v3 — the gate. Every route below this line is reachable by exactly two
 # kinds of caller: this Mac talking to itself, or a device that paired.
