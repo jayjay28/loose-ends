@@ -1,5 +1,6 @@
 import Foundation
 import Observation
+import ServiceManagement
 
 /// What the engine is doing, and the two verbs that change it.
 ///
@@ -71,6 +72,29 @@ final class EngineMonitor {
     private var plistPath: URL {
         URL(fileURLWithPath: NSHomeDirectory())
             .appendingPathComponent("Library/LaunchAgents/\(label).plist")
+    }
+
+    /// Ask to come back at login.
+    ///
+    /// The engine already survives a reboot — it is a launchd agent — so
+    /// without this the icon is the only part that doesn't, and the machine
+    /// returns to exactly the state this app was written to end: something
+    /// reading your mail with nothing on screen to show it or stop it.
+    ///
+    /// Registering through SMAppService rather than a private login-item API
+    /// means it appears in System Settings ▸ General ▸ Login Items under its
+    /// own name, where it can be switched off without hunting. For software
+    /// whose case rests on being visible and stoppable, being listed where
+    /// people already look to stop things is the point, not a detail.
+    func ensureStartsAtLogin() {
+        guard SMAppService.mainApp.status != .enabled else { return }
+        do {
+            try SMAppService.mainApp.register()
+        } catch {
+            // Not fatal, and not worth a dialog: the icon is running now, and
+            // the switch in System Settings is there if this failed.
+            lastError = "couldn't set itself to open at login"
+        }
     }
 
     func start() {

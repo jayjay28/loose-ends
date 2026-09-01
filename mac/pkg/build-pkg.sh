@@ -71,7 +71,20 @@ git archive HEAD backend | tar -x -C "$PAYLOAD"
 # The menu bar app rides along, already signed and stapled by mac/sign.sh.
 if [ -d "$HERE/../build/Loose Ends.app" ]; then
   cp -R "$HERE/../build/Loose Ends.app" "$PAYLOAD/Loose Ends.app"
-  say "including the menu bar app"
+  # The app and the package are built by separate commands at separate times,
+  # so their build numbers agree only if nothing was committed in between.
+  # They are both meant to answer "which build is this?", and two different
+  # answers is worse than one, so say when they have drifted.
+  APP_BUILD="$(/usr/libexec/PlistBuddy -c "Print :CFBundleVersion" \
+               "$PAYLOAD/Loose Ends.app/Contents/Info.plist" 2>/dev/null || echo "?")"
+  if [ "$APP_BUILD" = "$VERSION_BUILD" ]; then
+    say "including the menu bar app (build $APP_BUILD)"
+  else
+    say "including the menu bar app"
+    warn "the app says build $APP_BUILD, this package says $VERSION_BUILD."
+    warn "  They were built either side of a commit. Harmless to test with,"
+    warn "  but re-run mac/sign.sh before sharing so both name one build."
+  fi
 else
   warn "no signed menu bar app at mac/build — run mac/sign.sh first."
   warn "continuing without it; the engine will install, the icon won't appear."

@@ -17,7 +17,10 @@ struct LooseEndsMenuBarApp: App {
             // broken one when it isn't — legible at a glance and at 16pt,
             // which a coloured dot is not.
             Image(systemName: icon)
-                .task { engine.start() }
+                .task {
+                    engine.start()
+                    engine.ensureStartsAtLogin()
+                }
         }
         .menuBarExtraStyle(.window)
     }

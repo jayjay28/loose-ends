@@ -29,6 +29,15 @@ if [ -d "$PAYLOAD/Loose Ends.app" ]; then
   mv "$PAYLOAD/Loose Ends.app" "/Applications/Loose Ends.app"
   chown -R "$USER_NAME" "/Applications/Loose Ends.app"
   echo "menu bar app installed to /Applications"
+  # And start it, in the user's GUI session. install.sh has a line that does
+  # this, but it only fires for the source-checkout layout, so a package
+  # install put the app on disk and left it closed: no icon, and an
+  # LSUIElement app opens no window when double-clicked, so nothing about
+  # that state tells you what to do. The engine would have been reading a
+  # stranger's mail with nothing on screen to say so or stop it, which is
+  # the one outcome this app exists to prevent.
+  launchctl asuser "$USER_UID" sudo -u "$USER_NAME" \
+    open -g "/Applications/Loose Ends.app" 2>/dev/null || true
 else
   # Not a missing file so much as a misplaced one: if pkgbuild ever marks the
   # bundle relocatable again, the Installer will have written it over some
